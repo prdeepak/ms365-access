@@ -1,0 +1,25 @@
+
+services:
+  api:
+    container_name: ms365-access-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8365:8365"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=sqlite+aiosqlite:///./data/ms365_access.db
+      - APP_HOST=0.0.0.0
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - ms365-access-network
+
+networks:
+  ms365-access-network:
+    driver: bridge

@@ -1,0 +1,38 @@
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Data & logs
+data/*.db
+data/*.db-journal
+logs/*.log
+backend/data/
+backend/logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project
+*.pid
+.uvicorn.pid
+
+# Audit logs (may contain PII)
+data/audit.log
