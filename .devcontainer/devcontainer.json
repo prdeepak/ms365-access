@@ -1,0 +1,23 @@
+{
+  "name": "ms365-access",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "mounts": [
+    "source=${localEnv:HOME}/.config/ms365-access,target=/workspace/.env-mount,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": ".devcontainer/setup.sh",
+  "postStartCommand": "[ -f /workspace/.env-mount/.env ] && ln -sf /workspace/.env-mount/.env /workspace/.env || echo 'Note: Create ~/.config/ms365-access/.env with your credentials'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/workspace/backend/.venv/bin/python"
+      }
+    }
+  },
+  "forwardPorts": [8365],
+  "workspaceFolder": "/workspace"
+}
