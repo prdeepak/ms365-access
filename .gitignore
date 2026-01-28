@@ -14,8 +14,7 @@ dist/
 *.egg-info/
 
 # Data & logs
-data/*.db
-data/*.db-journal
+data/
 logs/*.log
 backend/data/
 backend/logs/
@@ -34,5 +33,4 @@ Thumbs.db
 *.pid
 .uvicorn.pid
 
-# Audit logs (may contain PII)
-data/audit.log
+# Audit logs (covered by data/)
