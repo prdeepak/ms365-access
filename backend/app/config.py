@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # Security settings
     allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
-    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5177", "http://127.0.0.1:5177"]
 
     @field_validator("allowed_hosts", "cors_origins", mode="before")
     @classmethod
