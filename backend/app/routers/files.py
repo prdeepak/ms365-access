@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Response
 from typing import Optional
 
-from app.dependencies import get_graph_client, get_current_auth
+from app.dependencies import get_graph_client, get_current_auth, require_permission
 from app.services.graph_client import GraphClient
 from app.services.onedrive_service import OneDriveService
 from app.models import Auth
@@ -15,13 +15,13 @@ def get_onedrive_service(graph_client: GraphClient = Depends(get_graph_client)) 
     return OneDriveService(graph_client)
 
 
-@router.get("/drives")
+@router.get("/drives", dependencies=[Depends(require_permission("read:files"))])
 async def list_drives(onedrive_service: OneDriveService = Depends(get_onedrive_service)):
     result = await onedrive_service.list_drives()
     return result.get("value", [])
 
 
-@router.get("/drive/root")
+@router.get("/drive/root", dependencies=[Depends(require_permission("read:files"))])
 async def get_drive_root(
     drive_id: Optional[str] = None,
     onedrive_service: OneDriveService = Depends(get_onedrive_service),
@@ -29,7 +29,7 @@ async def get_drive_root(
     return await onedrive_service.get_drive_root(drive_id=drive_id)
 
 
-@router.get("/items/{item_id}")
+@router.get("/items/{item_id}", dependencies=[Depends(require_permission("read:files"))])
 async def get_item(
     item_id: str,
     drive_id: Optional[str] = None,
@@ -38,7 +38,7 @@ async def get_item(
     return await onedrive_service.get_item(item_id=item_id, drive_id=drive_id)
 
 
-@router.get("/items/{item_id}/children")
+@router.get("/items/{item_id}/children", dependencies=[Depends(require_permission("read:files"))])
 async def list_children(
     item_id: str,
     drive_id: Optional[str] = None,
@@ -60,7 +60,7 @@ async def list_children(
     }
 
 
-@router.get("/items/{item_id}/content")
+@router.get("/items/{item_id}/content", dependencies=[Depends(require_permission("read:files"))])
 async def download_content(
     item_id: str,
     drive_id: Optional[str] = None,
@@ -72,7 +72,7 @@ async def download_content(
     return Response(content=content, media_type="application/octet-stream")
 
 
-@router.put("/items/{parent_id}:/{filename}:/content")
+@router.put("/items/{parent_id}:/{filename}:/content", dependencies=[Depends(require_permission("write:files"))])
 async def upload_content(
     parent_id: str,
     filename: str,
@@ -95,7 +95,7 @@ async def upload_content(
     return result
 
 
-@router.delete("/items/{item_id}")
+@router.delete("/items/{item_id}", dependencies=[Depends(require_permission("write:files"))])
 async def delete_item(
     item_id: str,
     drive_id: Optional[str] = None,
@@ -107,7 +107,7 @@ async def delete_item(
     return {"message": "Item deleted successfully"}
 
 
-@router.post("/items/{parent_id}/folder")
+@router.post("/items/{parent_id}/folder", dependencies=[Depends(require_permission("write:files"))])
 async def create_folder(
     parent_id: str,
     request: CreateFolderRequest,
@@ -121,7 +121,7 @@ async def create_folder(
     )
 
 
-@router.patch("/items/{item_id}")
+@router.patch("/items/{item_id}", dependencies=[Depends(require_permission("write:files"))])
 async def update_item(
     item_id: str,
     request: RenameItemRequest,
@@ -144,7 +144,7 @@ async def update_item(
     return {"message": "No changes requested"}
 
 
-@router.get("/search")
+@router.get("/search", dependencies=[Depends(require_permission("read:files"))])
 async def search_files(
     q: str,
     drive_id: Optional[str] = None,

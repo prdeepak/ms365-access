@@ -8,7 +8,7 @@ import httpx
 
 from app.config import get_settings
 from app.database import init_db
-from app.routers import auth, mail, calendar, files, sharepoint
+from app.routers import auth, mail, calendar, files, sharepoint, api_keys
 
 # Configure logging
 logging.basicConfig(
@@ -71,11 +71,15 @@ async def http_exception_handler(request: Request, exc: httpx.HTTPStatusError):
 
 
 # Include routers
+# Auth routes are NOT protected by API key (needed for initial OAuth setup)
 app.include_router(auth.router)
+# All data routes require API key auth (enforced per-route via require_permission)
 app.include_router(mail.router)
 app.include_router(calendar.router)
 app.include_router(files.router)
 app.include_router(sharepoint.router)
+# API key management routes (admin-only, also protected by require_permission)
+app.include_router(api_keys.router)
 
 
 @app.get("/")

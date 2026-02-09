@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.dependencies import get_graph_client, get_current_auth
+from app.dependencies import get_graph_client, get_current_auth, require_permission
 from app.services.graph_client import GraphClient
 from app.services.calendar_service import CalendarService
 from app.models import Auth
@@ -44,13 +44,13 @@ def get_calendar_service(graph_client: GraphClient = Depends(get_graph_client)) 
     return CalendarService(graph_client)
 
 
-@router.get("/calendars")
+@router.get("/calendars", dependencies=[Depends(require_permission("read:calendar"))])
 async def list_calendars(calendar_service: CalendarService = Depends(get_calendar_service)):
     result = await calendar_service.list_calendars()
     return result.get("value", [])
 
 
-@router.get("/events")
+@router.get("/events", dependencies=[Depends(require_permission("read:calendar"))])
 async def list_events(
     calendar_id: Optional[str] = None,
     top: int = Query(25, ge=1, le=100),
@@ -74,7 +74,7 @@ async def list_events(
     }
 
 
-@router.get("/view")
+@router.get("/view", dependencies=[Depends(require_permission("read:calendar"))])
 async def get_calendar_view(
     start_datetime: datetime,
     end_datetime: datetime,
@@ -96,7 +96,7 @@ async def get_calendar_view(
     }
 
 
-@router.get("/events/{event_id}")
+@router.get("/events/{event_id}", dependencies=[Depends(require_permission("read:calendar"))])
 async def get_event(
     event_id: str,
     calendar_service: CalendarService = Depends(get_calendar_service),
@@ -106,7 +106,7 @@ async def get_event(
     return convert_event_to_local_tz(event, settings.local_timezone)
 
 
-@router.post("/events")
+@router.post("/events", dependencies=[Depends(require_permission("write:calendar"))])
 async def create_event(
     request: CreateEventRequest,
     calendar_id: Optional[str] = None,
@@ -139,7 +139,7 @@ async def create_event(
     return result
 
 
-@router.patch("/events/{event_id}")
+@router.patch("/events/{event_id}", dependencies=[Depends(require_permission("write:calendar"))])
 async def update_event(
     event_id: str,
     request: UpdateEventRequest,
@@ -168,7 +168,7 @@ async def update_event(
     return result
 
 
-@router.delete("/events/{event_id}")
+@router.delete("/events/{event_id}", dependencies=[Depends(require_permission("write:calendar"))])
 async def delete_event(
     event_id: str,
     calendar_service: CalendarService = Depends(get_calendar_service),
@@ -179,7 +179,7 @@ async def delete_event(
     return {"message": "Event deleted successfully"}
 
 
-@router.post("/events/{event_id}/accept")
+@router.post("/events/{event_id}/accept", dependencies=[Depends(require_permission("write:calendar"))])
 async def accept_event(
     event_id: str,
     request: RespondEventRequest = None,
@@ -196,7 +196,7 @@ async def accept_event(
     return {"message": "Event accepted"}
 
 
-@router.post("/events/{event_id}/tentative")
+@router.post("/events/{event_id}/tentative", dependencies=[Depends(require_permission("write:calendar"))])
 async def tentatively_accept_event(
     event_id: str,
     request: RespondEventRequest = None,
@@ -213,7 +213,7 @@ async def tentatively_accept_event(
     return {"message": "Event tentatively accepted"}
 
 
-@router.post("/events/{event_id}/decline")
+@router.post("/events/{event_id}/decline", dependencies=[Depends(require_permission("write:calendar"))])
 async def decline_event(
     event_id: str,
     request: RespondEventRequest = None,
