@@ -80,6 +80,8 @@ class UpdateMailRequest(BaseModel):
     is_read: Optional[bool] = None
     flag_status: Optional[str] = None  # notFlagged, complete, flagged
     categories: Optional[list[str]] = None
+    body: Optional[str] = None  # Body content (HTML or text)
+    body_type: Optional[str] = None  # "HTML" or "Text" (default: "HTML")
 
 
 class MoveMailRequest(BaseModel):

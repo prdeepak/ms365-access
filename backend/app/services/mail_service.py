@@ -125,6 +125,8 @@ class MailService:
         is_read: Optional[bool] = None,
         flag_status: Optional[str] = None,
         categories: Optional[list[str]] = None,
+        body: Optional[str] = None,
+        body_type: Optional[str] = None,
     ) -> dict:
         data = {}
         if is_read is not None:
@@ -133,6 +135,11 @@ class MailService:
             data["flag"] = {"flagStatus": flag_status}
         if categories is not None:
             data["categories"] = categories
+        if body is not None:
+            data["body"] = {
+                "contentType": body_type or "HTML",
+                "content": body,
+            }
 
         return await self.client.patch(f"/me/messages/{message_id}", data)
 
@@ -184,6 +191,21 @@ class MailService:
 
     async def delete_message(self, message_id: str) -> None:
         await self.client.delete(f"/me/messages/{message_id}")
+
+    async def send_draft(self, message_id: str) -> None:
+        """Send an existing draft message."""
+        await self.client.post(f"/me/messages/{message_id}/send", {})
+
+    async def create_reply_draft(
+        self, message_id: str, reply_all: bool = False
+    ) -> dict:
+        """Create a draft reply to a message (does not send it).
+
+        Uses MS Graph createReply/createReplyAll which creates a draft
+        message in the Drafts folder with the proper reply headers.
+        """
+        endpoint = f"/me/messages/{message_id}/{'createReplyAll' if reply_all else 'createReply'}"
+        return await self.client.post(endpoint, {})
 
     async def search_messages(
         self,

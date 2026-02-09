@@ -136,6 +136,36 @@ async def send_mail(
     return {"message": "Email sent successfully"}
 
 
+@router.post("/messages/{message_id}/send")
+async def send_draft(
+    message_id: str,
+    mail_service: MailService = Depends(get_mail_service),
+    auth: Auth = Depends(get_current_auth),
+):
+    """Send an existing draft message."""
+    await mail_service.send_draft(message_id)
+    audit.log_mail_send(auth.email, [], f"draft:{message_id}")
+    return {"message": "Draft sent successfully"}
+
+
+@router.post("/messages/{message_id}/draftReply")
+async def create_reply_draft(
+    message_id: str,
+    reply_all: bool = Query(False, description="Create reply-all draft instead of reply"),
+    mail_service: MailService = Depends(get_mail_service),
+):
+    """Create a draft reply to a message (does not send it).
+
+    Returns the draft message object with its ID. Use PATCH /mail/messages/{draft_id}
+    to update the body before sending.
+    """
+    result = await mail_service.create_reply_draft(
+        message_id=message_id,
+        reply_all=reply_all,
+    )
+    return result
+
+
 @router.post("/messages/{message_id}/reply")
 async def reply_to_message(
     message_id: str,
@@ -175,6 +205,8 @@ async def update_message(
         is_read=request.is_read,
         flag_status=request.flag_status,
         categories=request.categories,
+        body=request.body,
+        body_type=request.body_type,
     )
 
 
