@@ -1,7 +1,7 @@
 # MS365 Access - Development Commands
 # Port: API=8365
 
-.PHONY: help up down build restart shell logs auth status check-docker
+.PHONY: help up down build restart shell logs auth status check-docker gen-client check-client test
 
 # Default target
 help:
@@ -20,6 +20,13 @@ help:
 	@echo "App Commands:"
 	@echo "  make auth      - Open login page in browser"
 	@echo "  make status    - Show app and auth status"
+	@echo ""
+	@echo "Testing:"
+	@echo "  make test         - Run all checks (includes check-client)"
+	@echo ""
+	@echo "Code Generation:"
+	@echo "  make gen-client   - Regenerate Python client + README from OpenAPI spec"
+	@echo "  make check-client - Verify generated files are up-to-date (for CI)"
 	@echo ""
 	@echo "Port: API=8365"
 
@@ -62,6 +69,18 @@ shell:
 # App commands
 auth:
 	open "http://localhost:8365/auth/login"
+
+# Code generation
+gen-client:
+	@echo "Generating Python client and README API docs from OpenAPI spec..."
+	python3 scripts/gen_client.py
+	@echo ""
+
+check-client:
+	@python3 scripts/gen_client.py --check
+
+test: check-client
+	@echo "All checks passed."
 
 status:
 	@echo "Container status:"
