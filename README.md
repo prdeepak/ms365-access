@@ -345,3 +345,93 @@ make down  # Stop
 - **Token encryption**: OAuth tokens encrypted at rest using Fernet (AES-128-CBC)
 - **Localhost binding**: Binds to 127.0.0.1 only by default
 - **Audit logging**: Sensitive operations logged to `data/audit.log`
+
+<!-- GEN:API_START -->
+
+## API Reference
+
+> Auto-generated from OpenAPI spec. Do not edit manually.
+> Regenerate with: `make gen-client`
+
+### Health
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health |
+
+### Mail
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/mail/batch/delete` | Batch Delete Messages |
+| POST | `/mail/batch/move` | Batch Move Messages |
+| GET | `/mail/folders` | List Folders |
+| GET | `/mail/folders/resolve/{name}` | Resolve Folder Name |
+| GET | `/mail/messages?folder=...&folder_id=...&top=...&...` | List Messages |
+| POST | `/mail/messages` | Send Mail |
+| DELETE | `/mail/messages/{message_id}` | Delete Message |
+| GET | `/mail/messages/{message_id}` | Get Message |
+| PATCH | `/mail/messages/{message_id}` | Update Message |
+| POST | `/mail/messages/{message_id}/draftReply?reply_all=...` | Create Reply Draft |
+| POST | `/mail/messages/{message_id}/forward` | Forward Message |
+| POST | `/mail/messages/{message_id}/move?verify=...` | Move Message |
+| POST | `/mail/messages/{message_id}/reply` | Reply To Message |
+| POST | `/mail/messages/{message_id}/send` | Send Draft |
+| GET | `/mail/search?q=...&top=...&skip=...` | Search Messages |
+
+### Calendar
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/calendar/calendars` | List Calendars |
+| GET | `/calendar/events?calendar_id=...&top=...&skip=...&...` | List Events |
+| POST | `/calendar/events?calendar_id=...` | Create Event |
+| DELETE | `/calendar/events/{event_id}` | Delete Event |
+| GET | `/calendar/events/{event_id}` | Get Event |
+| PATCH | `/calendar/events/{event_id}` | Update Event |
+| POST | `/calendar/events/{event_id}/accept` | Accept Event |
+| POST | `/calendar/events/{event_id}/decline` | Decline Event |
+| POST | `/calendar/events/{event_id}/tentative` | Tentatively Accept Event |
+| GET | `/calendar/view?start_datetime=...&end_datetime=...&calendar_id=...&...` | Get Calendar View |
+
+### Files
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/files/drive/root?drive_id=...` | Get Drive Root |
+| GET | `/files/drives` | List Drives |
+| DELETE | `/files/items/{item_id}?drive_id=...` | Delete Item |
+| GET | `/files/items/{item_id}?drive_id=...` | Get Item |
+| PATCH | `/files/items/{item_id}?drive_id=...` | Update Item |
+| GET | `/files/items/{item_id}/children?drive_id=...&top=...&skip=...&...` | List Children |
+| GET | `/files/items/{item_id}/content?drive_id=...` | Download Content |
+| POST | `/files/items/{parent_id}/folder?drive_id=...` | Create Folder |
+| PUT | `/files/items/{parent_id}:/{filename}:/content?drive_id=...` | Upload Content |
+| GET | `/files/search?q=...&drive_id=...&top=...` | Search Files |
+
+### Sharepoint
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/sharepoint/drives?site_id=...` | List Drives |
+| GET | `/sharepoint/items/{item_id}?drive_id=...` | Get Item |
+| GET | `/sharepoint/items/{item_id}/children?drive_id=...&top=...&order_by=...` | List Children |
+| GET | `/sharepoint/items/{item_id}/content?drive_id=...&format=...` | Download Content |
+| GET | `/sharepoint/resolve?url=...` | Resolve Url |
+| GET | `/sharepoint/search?q=...&drive_id=...&top=...` | Search |
+| GET | `/sharepoint/sites/{host_path}` | Resolve Site |
+
+### 
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Root |
+
+### Auth
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/logout` | Logout |
+| GET | `/auth/status` | Auth Status |
+
+<!-- GEN:API_END -->
