@@ -124,7 +124,7 @@ class GraphClient:
         client = await self._get_client()
         headers = await self._get_headers()
         url = f"{self.base_url}{endpoint}"
-        response = await client.get(url, headers=headers)
+        response = await client.get(url, headers=headers, follow_redirects=True)
         response.raise_for_status()
         return response.content
 
