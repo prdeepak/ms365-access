@@ -8,7 +8,7 @@ import httpx
 
 from app.config import get_settings
 from app.database import init_db
-from app.routers import auth, mail, calendar, files
+from app.routers import auth, mail, calendar, files, sharepoint
 
 # Configure logging
 logging.basicConfig(
@@ -75,6 +75,7 @@ app.include_router(auth.router)
 app.include_router(mail.router)
 app.include_router(calendar.router)
 app.include_router(files.router)
+app.include_router(sharepoint.router)
 
 
 @app.get("/")
