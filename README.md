@@ -372,12 +372,15 @@ make down  # Stop
 | DELETE | `/mail/messages/{message_id}` | Delete Message |
 | GET | `/mail/messages/{message_id}` | Get Message |
 | PATCH | `/mail/messages/{message_id}` | Update Message |
+| GET | `/mail/messages/{message_id}/attachments` | List Attachments |
+| GET | `/mail/messages/{message_id}/attachments/{attachment_id}` | Download Attachment |
 | POST | `/mail/messages/{message_id}/draftReply?reply_all=...` | Create Reply Draft |
 | POST | `/mail/messages/{message_id}/forward` | Forward Message |
 | POST | `/mail/messages/{message_id}/move?verify=...` | Move Message |
 | POST | `/mail/messages/{message_id}/reply` | Reply To Message |
 | POST | `/mail/messages/{message_id}/send` | Send Draft |
 | GET | `/mail/search?q=...&top=...&skip=...` | Search Messages |
+| GET | `/mail/threads?folder=...&folder_id=...&top=...` | List Threads |
 
 ### Calendar
 
@@ -426,6 +429,15 @@ make down  # Stop
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Root |
+
+### Api Keys
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api-keys` | List Api Keys |
+| POST | `/api-keys` | Create Api Key |
+| DELETE | `/api-keys/{key_id}` | Revoke Api Key |
+| PATCH | `/api-keys/{key_id}` | Update Api Key |
 
 ### Auth
 
