@@ -69,7 +69,7 @@ async def list_messages(
         None,
         description="Actual folder ID. Takes precedence over 'folder' if both provided.",
     ),
-    top: int = Query(25, ge=1, le=100),
+    top: int = Query(25, ge=1),
     skip: int = Query(0, ge=0),
     search: Optional[str] = None,
     filter: Optional[str] = None,
@@ -81,6 +81,9 @@ async def list_messages(
     Note: MS Graph API can cache results when querying folders by well-known name.
     This endpoint resolves folder names to IDs internally to ensure fresh results.
     """
+    # MS Graph API caps $top at 100 per page
+    top = min(top, 100)
+
     # Resolve folder name to ID if folder is provided but folder_id is not
     resolved_folder_id = folder_id
     if folder and not folder_id:
@@ -304,10 +307,11 @@ async def batch_delete_messages(
 @router.get("/search", dependencies=[Depends(require_permission("read:mail"))])
 async def search_messages(
     q: str,
-    top: int = Query(25, ge=1, le=100),
+    top: int = Query(25, ge=1),
     skip: int = Query(0, ge=0),
     mail_service: MailService = Depends(get_mail_service),
 ):
+    top = min(top, 100)
     result = await mail_service.search_messages(query=q, top=top, skip=skip)
     return {
         "items": result.get("value", []),
@@ -325,13 +329,15 @@ async def list_threads(
         None,
         description="Actual folder ID. Takes precedence over 'folder' if both provided.",
     ),
-    top: int = Query(25, ge=1, le=100),
+    top: int = Query(25, ge=1),
     mail_service: MailService = Depends(get_mail_service),
 ):
     """List messages grouped by conversationId, ordered by most recent thread activity.
 
     Returns threads with: conversationId, subject, messages[], latestDateTime, messageCount.
     """
+    top = min(top, 100)
+
     # Resolve folder name to ID if needed
     resolved_folder_id = folder_id
     if folder and not folder_id:
