@@ -220,3 +220,82 @@ class MailService:
             "$select": "id,subject,bodyPreview,from,toRecipients,receivedDateTime,isRead,hasAttachments",
         }
         return await self.client.get("/me/messages", params=params)
+
+    async def list_threads(
+        self,
+        folder_id: Optional[str] = None,
+        top: int = 25,
+    ) -> list[dict]:
+        """List messages grouped by conversationId, ordered by most recent thread activity.
+
+        Fetches a larger batch of messages (up to 250) and groups them client-side
+        by conversationId, then returns the requested number of threads.
+        """
+        # Fetch more messages than requested threads to get enough conversations
+        fetch_count = min(top * 10, 250)
+
+        if folder_id:
+            endpoint = f"/me/mailFolders/{folder_id}/messages"
+        else:
+            endpoint = "/me/messages"
+
+        params = {
+            "$top": fetch_count,
+            "$orderby": "receivedDateTime desc",
+            "$select": "id,subject,bodyPreview,from,toRecipients,ccRecipients,"
+                       "receivedDateTime,sentDateTime,isRead,isDraft,"
+                       "hasAttachments,importance,flag,conversationId",
+        }
+
+        result = await self.client.get(endpoint, params=params)
+        messages = result.get("value", [])
+
+        # Group by conversationId
+        threads: dict[str, dict] = {}
+        for msg in messages:
+            conv_id = msg.get("conversationId")
+            if not conv_id:
+                continue
+
+            if conv_id not in threads:
+                threads[conv_id] = {
+                    "conversationId": conv_id,
+                    "subject": msg.get("subject"),
+                    "latestDateTime": msg.get("receivedDateTime"),
+                    "messageCount": 0,
+                    "messages": [],
+                }
+
+            threads[conv_id]["messages"].append(msg)
+            threads[conv_id]["messageCount"] += 1
+
+            # Track the most recent datetime
+            msg_dt = msg.get("receivedDateTime")
+            if msg_dt and (
+                threads[conv_id]["latestDateTime"] is None
+                or msg_dt > threads[conv_id]["latestDateTime"]
+            ):
+                threads[conv_id]["latestDateTime"] = msg_dt
+
+        # Sort threads by most recent activity (descending)
+        sorted_threads = sorted(
+            threads.values(),
+            key=lambda t: t["latestDateTime"] or "",
+            reverse=True,
+        )
+
+        return sorted_threads[:top]
+
+    async def list_attachments(self, message_id: str) -> list[dict]:
+        """List attachments for a message."""
+        result = await self.client.get(
+            f"/me/messages/{message_id}/attachments",
+            params={"$select": "id,name,size,contentType,isInline"},
+        )
+        return result.get("value", [])
+
+    async def get_attachment(self, message_id: str, attachment_id: str) -> bytes:
+        """Download attachment content (raw bytes)."""
+        return await self.client.get_raw(
+            f"/me/messages/{message_id}/attachments/{attachment_id}/$value"
+        )

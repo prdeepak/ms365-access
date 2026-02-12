@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
 from datetime import datetime
 from app.database import Base
 
@@ -27,3 +27,15 @@ class BackgroundJob(Base):
     error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key_hash = Column(String(64), unique=True, index=True, nullable=False)  # SHA256 hex
+    name = Column(String(255), unique=True, nullable=False)
+    permissions = Column(Text, nullable=False)  # JSON array, e.g. '["read:mail","read:calendar"]'
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)

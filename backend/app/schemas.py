@@ -230,6 +230,27 @@ class RenameItemRequest(BaseModel):
     parent_id: Optional[str] = None  # For moving
 
 
+# Attachment schemas
+class Attachment(BaseModel):
+    id: str
+    name: str
+    size: int = 0
+    content_type: str = Field("application/octet-stream", alias="contentType")
+    is_inline: bool = Field(False, alias="isInline")
+
+    class Config:
+        populate_by_name = True
+
+
+# Thread schemas
+class MailThread(BaseModel):
+    conversation_id: str
+    subject: Optional[str] = None
+    latest_datetime: Optional[datetime] = None
+    message_count: int = 0
+    messages: list[MailMessage] = []
+
+
 # Background job schemas
 class BackgroundJobStatus(BaseModel):
     id: str
@@ -241,6 +262,32 @@ class BackgroundJobStatus(BaseModel):
     error: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+# API key schemas
+class ApiKeyCreate(BaseModel):
+    name: str
+    permissions: list[str]
+
+
+class ApiKeyResponse(BaseModel):
+    id: int
+    name: str
+    permissions: list[str]
+    created_at: datetime
+    last_used_at: Optional[datetime] = None
+    is_active: bool
+
+
+class ApiKeyCreated(ApiKeyResponse):
+    """Response when a new key is created — includes the raw key (shown only once)."""
+    raw_key: str
+
+
+class ApiKeyUpdate(BaseModel):
+    name: Optional[str] = None
+    permissions: Optional[list[str]] = None
+    is_active: Optional[bool] = None
 
 
 # Pagination

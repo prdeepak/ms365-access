@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 import logging
 
 from app.database import get_db
-from app.dependencies import get_graph_client, get_current_auth
+from app.dependencies import get_graph_client, get_current_auth, require_permission
 from app.services.graph_client import GraphClient
 from app.services.mail_service import MailService
 from app.schemas import (
@@ -30,13 +30,13 @@ def get_mail_service(graph_client: GraphClient = Depends(get_graph_client)) -> M
     return MailService(graph_client)
 
 
-@router.get("/folders")
+@router.get("/folders", dependencies=[Depends(require_permission("read:mail"))])
 async def list_folders(mail_service: MailService = Depends(get_mail_service)):
     result = await mail_service.list_folders()
     return result.get("value", [])
 
 
-@router.get("/folders/resolve/{name}")
+@router.get("/folders/resolve/{name}", dependencies=[Depends(require_permission("read:mail"))])
 async def resolve_folder_name(
     name: str, mail_service: MailService = Depends(get_mail_service)
 ):
@@ -58,7 +58,7 @@ async def resolve_folder_name(
         )
 
 
-@router.get("/messages")
+@router.get("/messages", dependencies=[Depends(require_permission("read:mail"))])
 async def list_messages(
     folder: Optional[str] = Query(
         None,
@@ -108,7 +108,7 @@ async def list_messages(
     }
 
 
-@router.get("/messages/{message_id}")
+@router.get("/messages/{message_id}", dependencies=[Depends(require_permission("read:mail"))])
 async def get_message(
     message_id: str,
     mail_service: MailService = Depends(get_mail_service),
@@ -116,7 +116,7 @@ async def get_message(
     return await mail_service.get_message(message_id)
 
 
-@router.post("/messages")
+@router.post("/messages", dependencies=[Depends(require_permission("write:mail"))])
 async def send_mail(
     request: SendMailRequest,
     mail_service: MailService = Depends(get_mail_service),
@@ -136,7 +136,7 @@ async def send_mail(
     return {"message": "Email sent successfully"}
 
 
-@router.post("/messages/{message_id}/send")
+@router.post("/messages/{message_id}/send", dependencies=[Depends(require_permission("write:mail"))])
 async def send_draft(
     message_id: str,
     mail_service: MailService = Depends(get_mail_service),
@@ -148,7 +148,7 @@ async def send_draft(
     return {"message": "Draft sent successfully"}
 
 
-@router.post("/messages/{message_id}/draftReply")
+@router.post("/messages/{message_id}/draftReply", dependencies=[Depends(require_permission("write:draft"))])
 async def create_reply_draft(
     message_id: str,
     reply_all: bool = Query(False, description="Create reply-all draft instead of reply"),
@@ -166,7 +166,7 @@ async def create_reply_draft(
     return result
 
 
-@router.post("/messages/{message_id}/reply")
+@router.post("/messages/{message_id}/reply", dependencies=[Depends(require_permission("write:mail"))])
 async def reply_to_message(
     message_id: str,
     request: ReplyMailRequest,
@@ -180,7 +180,7 @@ async def reply_to_message(
     return {"message": "Reply sent successfully"}
 
 
-@router.post("/messages/{message_id}/forward")
+@router.post("/messages/{message_id}/forward", dependencies=[Depends(require_permission("write:mail"))])
 async def forward_message(
     message_id: str,
     request: ForwardMailRequest,
@@ -194,7 +194,7 @@ async def forward_message(
     return {"message": "Message forwarded successfully"}
 
 
-@router.patch("/messages/{message_id}")
+@router.patch("/messages/{message_id}", dependencies=[Depends(require_permission("write:draft"))])
 async def update_message(
     message_id: str,
     request: UpdateMailRequest,
@@ -210,7 +210,7 @@ async def update_message(
     )
 
 
-@router.post("/messages/{message_id}/move")
+@router.post("/messages/{message_id}/move", dependencies=[Depends(require_permission("write:mail"))])
 async def move_message(
     message_id: str,
     request: MoveMailRequest,
@@ -244,7 +244,7 @@ async def move_message(
     return result
 
 
-@router.delete("/messages/{message_id}")
+@router.delete("/messages/{message_id}", dependencies=[Depends(require_permission("write:mail"))])
 async def delete_message(
     message_id: str,
     mail_service: MailService = Depends(get_mail_service),
@@ -255,7 +255,7 @@ async def delete_message(
     return {"message": "Message deleted successfully"}
 
 
-@router.post("/batch/move")
+@router.post("/batch/move", dependencies=[Depends(require_permission("write:mail"))])
 async def batch_move_messages(
     request: BatchMoveRequest,
     background_tasks: BackgroundTasks,
@@ -277,7 +277,7 @@ async def batch_move_messages(
     return {"job_id": job.id, "message": "Batch move started"}
 
 
-@router.post("/batch/delete")
+@router.post("/batch/delete", dependencies=[Depends(require_permission("write:mail"))])
 async def batch_delete_messages(
     request: BatchDeleteRequest,
     background_tasks: BackgroundTasks,
@@ -301,7 +301,7 @@ async def batch_delete_messages(
     return {"job_id": job.id, "message": "Batch delete started"}
 
 
-@router.get("/search")
+@router.get("/search", dependencies=[Depends(require_permission("read:mail"))])
 async def search_messages(
     q: str,
     top: int = Query(25, ge=1, le=100),
@@ -313,3 +313,58 @@ async def search_messages(
         "items": result.get("value", []),
         "next_link": result.get("@odata.nextLink"),
     }
+
+
+@router.get("/threads", dependencies=[Depends(require_permission("read:mail"))])
+async def list_threads(
+    folder: Optional[str] = Query(
+        None,
+        description="Well-known folder name (inbox, archive, junkemail, etc.).",
+    ),
+    folder_id: Optional[str] = Query(
+        None,
+        description="Actual folder ID. Takes precedence over 'folder' if both provided.",
+    ),
+    top: int = Query(25, ge=1, le=100),
+    mail_service: MailService = Depends(get_mail_service),
+):
+    """List messages grouped by conversationId, ordered by most recent thread activity.
+
+    Returns threads with: conversationId, subject, messages[], latestDateTime, messageCount.
+    """
+    # Resolve folder name to ID if needed
+    resolved_folder_id = folder_id
+    if folder and not folder_id:
+        try:
+            folder_data = await mail_service.resolve_folder_name(folder)
+            resolved_folder_id = folder_data.get("id")
+        except Exception as e:
+            logger.warning(f"Could not resolve folder '{folder}': {e}")
+            resolved_folder_id = folder
+
+    threads = await mail_service.list_threads(
+        folder_id=resolved_folder_id,
+        top=top,
+    )
+    return {"items": threads, "count": len(threads)}
+
+
+@router.get("/messages/{message_id}/attachments", dependencies=[Depends(require_permission("read:mail"))])
+async def list_attachments(
+    message_id: str,
+    mail_service: MailService = Depends(get_mail_service),
+):
+    """List attachments for a message (id, name, size, contentType)."""
+    attachments = await mail_service.list_attachments(message_id)
+    return {"items": attachments}
+
+
+@router.get("/messages/{message_id}/attachments/{attachment_id}", dependencies=[Depends(require_permission("read:mail"))])
+async def download_attachment(
+    message_id: str,
+    attachment_id: str,
+    mail_service: MailService = Depends(get_mail_service),
+):
+    """Download attachment content."""
+    content = await mail_service.get_attachment(message_id, attachment_id)
+    return Response(content=content, media_type="application/octet-stream")
