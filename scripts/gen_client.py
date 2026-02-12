@@ -316,12 +316,19 @@ def gen_method(ep):
 
 
 HTTP_HELPERS = '''\
+    def _auth_header(self, req):
+        """Add Authorization header if api_key is set."""
+        if self.api_key:
+            req.add_header("Authorization", f"Bearer {self.api_key}")
+
     def _get_json(self, path, params=None, timeout=30):
         url = f"{self.base_url}{path}"
         if params:
             url += ("&" if "?" in path else "?") + urlencode(params)
         try:
-            with urlopen(Request(url), timeout=timeout) as resp:
+            req = Request(url)
+            self._auth_header(req)
+            with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
             log.warning(f"GET {path} failed: {e}")
@@ -332,7 +339,9 @@ HTTP_HELPERS = '''\
         if params:
             url += ("&" if "?" in path else "?") + urlencode(params)
         try:
-            with urlopen(Request(url), timeout=timeout) as resp:
+            req = Request(url)
+            self._auth_header(req)
+            with urlopen(req, timeout=timeout) as resp:
                 return resp.read()
         except (URLError, HTTPError) as e:
             log.warning(f"GET (raw) {path} failed: {e}")
@@ -346,6 +355,7 @@ HTTP_HELPERS = '''\
             body = json.dumps(data).encode() if data else b""
             req = Request(url, data=body, method="POST")
             req.add_header("Content-Type", "application/json")
+            self._auth_header(req)
             with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
@@ -360,6 +370,7 @@ HTTP_HELPERS = '''\
             body = json.dumps(data).encode() if data else b""
             req = Request(url, data=body, method="PUT")
             req.add_header("Content-Type", "application/json")
+            self._auth_header(req)
             with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
@@ -374,6 +385,7 @@ HTTP_HELPERS = '''\
             body = json.dumps(data).encode() if data else b""
             req = Request(url, data=body, method="PATCH")
             req.add_header("Content-Type", "application/json")
+            self._auth_header(req)
             with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
@@ -386,6 +398,7 @@ HTTP_HELPERS = '''\
             url += ("&" if "?" in path else "?") + urlencode(params)
         try:
             req = Request(url, method="DELETE")
+            self._auth_header(req)
             with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
@@ -414,12 +427,14 @@ def generate_client(endpoints):
 
     # Constructor
     if HAS_ACCOUNT:
-        parts.append(f'    def __init__(self, base_url="{BASE_URL}", account=None):')
+        parts.append(f'    def __init__(self, base_url="{BASE_URL}", account=None, api_key=None):')
         parts.append('        self.base_url = base_url.rstrip("/")')
         parts.append("        self.default_account = account")
+        parts.append("        self.api_key = api_key")
     else:
-        parts.append(f'    def __init__(self, base_url="{BASE_URL}"):')
+        parts.append(f'    def __init__(self, base_url="{BASE_URL}", api_key=None):')
         parts.append('        self.base_url = base_url.rstrip("/")')
+        parts.append("        self.api_key = api_key")
 
     # Low-level helpers
     parts.append("")

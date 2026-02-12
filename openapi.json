@@ -121,7 +121,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/mail/folders/resolve/{name}": {
@@ -132,6 +137,11 @@
         "summary": "Resolve Folder Name",
         "description": "Resolve a well-known folder name to its folder object including ID.\n\nWell-known folder names include: inbox, drafts, sentitems, deleteditems,\njunkemail, archive, outbox, etc.\n\nThis is useful because MS Graph API can cache results when querying by\nwell-known name. Using the actual folder ID ensures fresh results.",
         "operationId": "resolve_folder_name_mail_folders_resolve__name__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "name",
@@ -173,6 +183,11 @@
         "summary": "List Messages",
         "description": "List messages from a folder.\n\nNote: MS Graph API can cache results when querying folders by well-known name.\nThis endpoint resolves folder names to IDs internally to ensure fresh results.",
         "operationId": "list_messages_mail_messages_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "folder",
@@ -303,6 +318,11 @@
         ],
         "summary": "Send Mail",
         "operationId": "send_mail_mail_messages_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -342,6 +362,11 @@
         ],
         "summary": "Get Message",
         "operationId": "get_message_mail_messages__message_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "message_id",
@@ -380,6 +405,11 @@
         ],
         "summary": "Update Message",
         "operationId": "update_message_mail_messages__message_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "message_id",
@@ -428,6 +458,11 @@
         ],
         "summary": "Delete Message",
         "operationId": "delete_message_mail_messages__message_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "message_id",
@@ -469,6 +504,11 @@
         "summary": "Send Draft",
         "description": "Send an existing draft message.",
         "operationId": "send_draft_mail_messages__message_id__send_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "message_id",
@@ -510,6 +550,11 @@
         "summary": "Create Reply Draft",
         "description": "Create a draft reply to a message (does not send it).\n\nReturns the draft message object with its ID. Use PATCH /mail/messages/{draft_id}\nto update the body before sending.",
         "operationId": "create_reply_draft_mail_messages__message_id__draftReply_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "message_id",
@@ -562,6 +607,11 @@
         ],
         "summary": "Reply To Message",
         "operationId": "reply_to_message_mail_messages__message_id__reply_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "message_id",
@@ -612,6 +662,11 @@
         ],
         "summary": "Forward Message",
         "operationId": "forward_message_mail_messages__message_id__forward_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "message_id",
@@ -663,6 +718,11 @@
         "summary": "Move Message",
         "description": "Move a message to a destination folder.\n\nThe destination_folder_id can be either an actual folder ID or a well-known\nfolder name (inbox, archive, junkemail, etc.).\n\nIf verify=True (default), the response will include a 'verified' field\nindicating whether the message's parentFolderId matches the destination.",
         "operationId": "move_message_mail_messages__message_id__move_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "message_id",
@@ -754,7 +814,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/mail/batch/delete": {
@@ -793,7 +858,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/mail/search": {
@@ -803,6 +873,11 @@
         ],
         "summary": "Search Messages",
         "operationId": "search_messages_mail_search_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "q",
@@ -859,6 +934,192 @@
         }
       }
     },
+    "/mail/threads": {
+      "get": {
+        "tags": [
+          "mail"
+        ],
+        "summary": "List Threads",
+        "description": "List messages grouped by conversationId, ordered by most recent thread activity.\n\nReturns threads with: conversationId, subject, messages[], latestDateTime, messageCount.",
+        "operationId": "list_threads_mail_threads_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "folder",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Well-known folder name (inbox, archive, junkemail, etc.).",
+              "title": "Folder"
+            },
+            "description": "Well-known folder name (inbox, archive, junkemail, etc.)."
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Actual folder ID. Takes precedence over 'folder' if both provided.",
+              "title": "Folder Id"
+            },
+            "description": "Actual folder ID. Takes precedence over 'folder' if both provided."
+          },
+          {
+            "name": "top",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Top"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mail/messages/{message_id}/attachments": {
+      "get": {
+        "tags": [
+          "mail"
+        ],
+        "summary": "List Attachments",
+        "description": "List attachments for a message (id, name, size, contentType).",
+        "operationId": "list_attachments_mail_messages__message_id__attachments_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mail/messages/{message_id}/attachments/{attachment_id}": {
+      "get": {
+        "tags": [
+          "mail"
+        ],
+        "summary": "Download Attachment",
+        "description": "Download attachment content.",
+        "operationId": "download_attachment_mail_messages__message_id__attachments__attachment_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "attachment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attachment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/calendar/calendars": {
       "get": {
         "tags": [
@@ -875,7 +1136,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/calendar/events": {
@@ -885,6 +1151,11 @@
         ],
         "summary": "List Events",
         "operationId": "list_events_calendar_events_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "calendar_id",
@@ -979,6 +1250,11 @@
         ],
         "summary": "Create Event",
         "operationId": "create_event_calendar_events_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "calendar_id",
@@ -1036,6 +1312,11 @@
         ],
         "summary": "Get Calendar View",
         "operationId": "get_calendar_view_calendar_view_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "start_datetime",
@@ -1115,6 +1396,11 @@
         ],
         "summary": "Get Event",
         "operationId": "get_event_calendar_events__event_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "event_id",
@@ -1153,6 +1439,11 @@
         ],
         "summary": "Update Event",
         "operationId": "update_event_calendar_events__event_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "event_id",
@@ -1201,6 +1492,11 @@
         ],
         "summary": "Delete Event",
         "operationId": "delete_event_calendar_events__event_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "event_id",
@@ -1241,6 +1537,11 @@
         ],
         "summary": "Accept Event",
         "operationId": "accept_event_calendar_events__event_id__accept_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "event_id",
@@ -1290,6 +1591,11 @@
         ],
         "summary": "Tentatively Accept Event",
         "operationId": "tentatively_accept_event_calendar_events__event_id__tentative_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "event_id",
@@ -1339,6 +1645,11 @@
         ],
         "summary": "Decline Event",
         "operationId": "decline_event_calendar_events__event_id__decline_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "event_id",
@@ -1397,7 +1708,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/files/drive/root": {
@@ -1407,6 +1723,11 @@
         ],
         "summary": "Get Drive Root",
         "operationId": "get_drive_root_files_drive_root_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "drive_id",
@@ -1454,6 +1775,11 @@
         ],
         "summary": "Get Item",
         "operationId": "get_item_files_items__item_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "item_id",
@@ -1508,6 +1834,11 @@
         ],
         "summary": "Delete Item",
         "operationId": "delete_item_files_items__item_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "item_id",
@@ -1562,6 +1893,11 @@
         ],
         "summary": "Update Item",
         "operationId": "update_item_files_items__item_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "item_id",
@@ -1628,6 +1964,11 @@
         ],
         "summary": "List Children",
         "operationId": "list_children_files_items__item_id__children_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "item_id",
@@ -1717,6 +2058,11 @@
         ],
         "summary": "Download Content",
         "operationId": "download_content_files_items__item_id__content_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "item_id",
@@ -1773,6 +2119,11 @@
         ],
         "summary": "Upload Content",
         "operationId": "upload_content_files_items__parent_id____filename___content_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "parent_id",
@@ -1848,6 +2199,11 @@
         ],
         "summary": "Create Folder",
         "operationId": "create_folder_files_items__parent_id__folder_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "parent_id",
@@ -1914,6 +2270,11 @@
         ],
         "summary": "Search Files",
         "operationId": "search_files_files_search_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "q",
@@ -2348,6 +2709,184 @@
         }
       }
     },
+    "/api-keys": {
+      "get": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "List Api Keys",
+        "description": "List all API keys (admin only). Raw key values are never returned.",
+        "operationId": "list_api_keys_api_keys_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApiKeyResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Api Keys Api Keys Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "Create Api Key",
+        "description": "Create a new API key. The raw key is returned only once.",
+        "operationId": "create_api_key_api_keys_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api-keys/{key_id}": {
+      "patch": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "Update Api Key",
+        "description": "Update an API key's name, permissions, or active status.",
+        "operationId": "update_api_key_api_keys__key_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Key Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "Revoke Api Key",
+        "description": "Revoke (deactivate) an API key. Does not delete it from the DB.",
+        "operationId": "revoke_api_key_api_keys__key_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Key Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -2383,6 +2922,173 @@
   },
   "components": {
     "schemas": {
+      "ApiKeyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "title": "ApiKeyCreate"
+      },
+      "ApiKeyCreated": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "raw_key": {
+            "type": "string",
+            "title": "Raw Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "permissions",
+          "created_at",
+          "is_active",
+          "raw_key"
+        ],
+        "title": "ApiKeyCreated",
+        "description": "Response when a new key is created \u2014 includes the raw key (shown only once)."
+      },
+      "ApiKeyResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "permissions",
+          "created_at",
+          "is_active"
+        ],
+        "title": "ApiKeyResponse"
+      },
+      "ApiKeyUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "permissions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "ApiKeyUpdate"
+      },
       "AuthStatus": {
         "properties": {
           "authenticated": {
@@ -2995,6 +3701,12 @@
           "type"
         ],
         "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }

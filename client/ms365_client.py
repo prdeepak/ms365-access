@@ -22,19 +22,27 @@ log = logging.getLogger("ms365_client")
 class Ms365Client:
     """Client for Ms365 Access HTTP API."""
 
-    def __init__(self, base_url="http://localhost:8365"):
+    def __init__(self, base_url="http://localhost:8365", api_key=None):
         self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
 
     # ------------------------------------------------------------------
     # Low-level helpers
     # ------------------------------------------------------------------
+
+    def _auth_header(self, req):
+        """Add Authorization header if api_key is set."""
+        if self.api_key:
+            req.add_header("Authorization", f"Bearer {self.api_key}")
 
     def _get_json(self, path, params=None, timeout=30):
         url = f"{self.base_url}{path}"
         if params:
             url += ("&" if "?" in path else "?") + urlencode(params)
         try:
-            with urlopen(Request(url), timeout=timeout) as resp:
+            req = Request(url)
+            self._auth_header(req)
+            with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
             log.warning(f"GET {path} failed: {e}")
@@ -45,7 +53,9 @@ class Ms365Client:
         if params:
             url += ("&" if "?" in path else "?") + urlencode(params)
         try:
-            with urlopen(Request(url), timeout=timeout) as resp:
+            req = Request(url)
+            self._auth_header(req)
+            with urlopen(req, timeout=timeout) as resp:
                 return resp.read()
         except (URLError, HTTPError) as e:
             log.warning(f"GET (raw) {path} failed: {e}")
@@ -59,6 +69,7 @@ class Ms365Client:
             body = json.dumps(data).encode() if data else b""
             req = Request(url, data=body, method="POST")
             req.add_header("Content-Type", "application/json")
+            self._auth_header(req)
             with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
@@ -73,6 +84,7 @@ class Ms365Client:
             body = json.dumps(data).encode() if data else b""
             req = Request(url, data=body, method="PUT")
             req.add_header("Content-Type", "application/json")
+            self._auth_header(req)
             with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
@@ -87,6 +99,7 @@ class Ms365Client:
             body = json.dumps(data).encode() if data else b""
             req = Request(url, data=body, method="PATCH")
             req.add_header("Content-Type", "application/json")
+            self._auth_header(req)
             with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
@@ -99,6 +112,7 @@ class Ms365Client:
             url += ("&" if "?" in path else "?") + urlencode(params)
         try:
             req = Request(url, method="DELETE")
+            self._auth_header(req)
             with urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode())
         except (URLError, HTTPError, json.JSONDecodeError) as e:
@@ -210,6 +224,14 @@ class Ms365Client:
             data["body_type"] = body_type
         return self._patch_json(f"/mail/messages/{message_id}", data)
 
+    def list_attachments(self, message_id):
+        """List Attachments"""
+        return self._get_json(f"/mail/messages/{message_id}/attachments")
+
+    def download_attachment(self, message_id, attachment_id):
+        """Download Attachment"""
+        return self._get_json(f"/mail/messages/{message_id}/attachments/{attachment_id}")
+
     def create_reply_draft(self, message_id, reply_all=False):
         """Create Reply Draft"""
         params = {k: v for k, v in {"reply_all": reply_all}.items() if v is not None}
@@ -245,6 +267,11 @@ class Ms365Client:
         """Search Messages"""
         params = {k: v for k, v in {"q": q, "top": top, "skip": skip}.items() if v is not None}
         return self._get_json(f"/mail/search", params)
+
+    def list_threads(self, folder=None, folder_id=None, top=25):
+        """List Threads"""
+        params = {k: v for k, v in {"folder": folder, "folder_id": folder_id, "top": top}.items() if v is not None}
+        return self._get_json(f"/mail/threads", params)
     # ------------------------------------------------------------------
     # Calendar
     # ------------------------------------------------------------------
@@ -515,6 +542,35 @@ class Ms365Client:
     def root(self):
         """Root"""
         return self._get_json(f"/")
+    # ------------------------------------------------------------------
+    # Api Keys
+    # ------------------------------------------------------------------
+
+    def list_api_keys(self):
+        """List Api Keys"""
+        return self._get_json(f"/api-keys")
+
+    def create_api_key(self, name, permissions):
+        """Create Api Key"""
+        data = {}
+        data["name"] = name
+        data["permissions"] = permissions
+        return self._post_json(f"/api-keys", data)
+
+    def revoke_api_key(self, key_id):
+        """Revoke Api Key"""
+        return self._delete_json(f"/api-keys/{key_id}")
+
+    def update_api_key(self, key_id, name=None, permissions=None, is_active=None):
+        """Update Api Key"""
+        data = {}
+        if name is not None:
+            data["name"] = name
+        if permissions is not None:
+            data["permissions"] = permissions
+        if is_active is not None:
+            data["is_active"] = is_active
+        return self._patch_json(f"/api-keys/{key_id}", data)
     # ------------------------------------------------------------------
     # Auth
     # ------------------------------------------------------------------
