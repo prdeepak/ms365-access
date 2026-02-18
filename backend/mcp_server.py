@@ -27,7 +27,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-mcp = FastMCP("ms365-access", host="127.0.0.1", port=8366)
+_host = os.environ.get("MCP_HOST", "127.0.0.1")
+mcp = FastMCP("ms365-access", host=_host, port=8366)
 
 BASE_URL = os.environ.get("MS365_API_URL", "http://localhost:8365")
 API_KEY = os.environ.get("MS365_API_KEY", "")
