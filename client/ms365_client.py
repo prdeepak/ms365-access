@@ -143,6 +143,33 @@ class Ms365Client:
         data["destination_folder_id"] = destination_folder_id
         return self._post_json(f"/mail/batch/move", data)
 
+    def create_draft(
+            self,
+            subject,
+            body='',
+            body_type='HTML',
+            to_recipients=None,
+            cc_recipients=None,
+            bcc_recipients=None,
+            importance='normal',
+    ):
+        """Create Draft"""
+        data = {}
+        data["subject"] = subject
+        if body is not None:
+            data["body"] = body
+        if body_type is not None:
+            data["body_type"] = body_type
+        if to_recipients is not None:
+            data["to_recipients"] = to_recipients
+        if cc_recipients is not None:
+            data["cc_recipients"] = cc_recipients
+        if bcc_recipients is not None:
+            data["bcc_recipients"] = bcc_recipients
+        if importance is not None:
+            data["importance"] = importance
+        return self._post_json(f"/mail/drafts", data)
+
     def list_folders(self):
         """List Folders"""
         return self._get_json(f"/mail/folders")
@@ -550,11 +577,14 @@ class Ms365Client:
         """List Api Keys"""
         return self._get_json(f"/api-keys")
 
-    def create_api_key(self, name, permissions):
+    def create_api_key(self, name, tier=None, permissions=None):
         """Create Api Key"""
         data = {}
         data["name"] = name
-        data["permissions"] = permissions
+        if tier is not None:
+            data["tier"] = tier
+        if permissions is not None:
+            data["permissions"] = permissions
         return self._post_json(f"/api-keys", data)
 
     def revoke_api_key(self, key_id):

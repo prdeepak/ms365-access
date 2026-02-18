@@ -365,6 +365,7 @@ make down  # Stop
 |--------|----------|-------------|
 | POST | `/mail/batch/delete` | Batch Delete Messages |
 | POST | `/mail/batch/move` | Batch Move Messages |
+| POST | `/mail/drafts` | Create Draft |
 | GET | `/mail/folders` | List Folders |
 | GET | `/mail/folders/resolve/{name}` | Resolve Folder Name |
 | GET | `/mail/messages?folder=...&folder_id=...&top=...&...` | List Messages |

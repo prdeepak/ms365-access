@@ -55,6 +55,16 @@ class MailMessageDetail(MailMessage):
     body: Optional[dict] = None
 
 
+class CreateDraftRequest(BaseModel):
+    subject: str
+    body: str = ""
+    body_type: str = "HTML"  # HTML or Text
+    to_recipients: list[str] = []
+    cc_recipients: list[str] = []
+    bcc_recipients: list[str] = []
+    importance: str = "normal"
+
+
 class SendMailRequest(BaseModel):
     subject: str
     body: str
@@ -267,12 +277,14 @@ class BackgroundJobStatus(BaseModel):
 # API key schemas
 class ApiKeyCreate(BaseModel):
     name: str
-    permissions: list[str]
+    tier: Optional[str] = None          # e.g. "openclaw" — pre-fills permissions from TIER_PERMISSIONS
+    permissions: list[str] = []         # explicit list; ignored when tier is set
 
 
 class ApiKeyResponse(BaseModel):
     id: int
     name: str
+    tier: Optional[str] = None
     permissions: list[str]
     created_at: datetime
     last_used_at: Optional[datetime] = None

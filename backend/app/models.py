@@ -35,6 +35,7 @@ class ApiKey(Base):
     id = Column(Integer, primary_key=True, index=True)
     key_hash = Column(String(64), unique=True, index=True, nullable=False)  # SHA256 hex
     name = Column(String(255), unique=True, nullable=False)
+    tier = Column(String(64), nullable=True)   # e.g. "openclaw"; NULL for manually-scoped keys
     permissions = Column(Text, nullable=False)  # JSON array, e.g. '["read:mail","read:calendar"]'
     created_at = Column(DateTime, default=datetime.utcnow)
     last_used_at = Column(DateTime, nullable=True)

@@ -8,6 +8,7 @@ from app.dependencies import get_graph_client, get_current_auth, require_permiss
 from app.services.graph_client import GraphClient
 from app.services.mail_service import MailService
 from app.schemas import (
+    CreateDraftRequest,
     SendMailRequest,
     ReplyMailRequest,
     ForwardMailRequest,
@@ -117,6 +118,27 @@ async def get_message(
     mail_service: MailService = Depends(get_mail_service),
 ):
     return await mail_service.get_message(message_id)
+
+
+@router.post("/drafts", dependencies=[Depends(require_permission("write:draft"))], status_code=201)
+async def create_draft(
+    request: CreateDraftRequest,
+    mail_service: MailService = Depends(get_mail_service),
+):
+    """Create a new draft message in Drafts folder (does not send).
+
+    Requires write:draft permission. To send the draft later, use
+    POST /mail/messages/{draft_id}/send (requires write:mail).
+    """
+    return await mail_service.create_draft(
+        subject=request.subject,
+        body=request.body,
+        body_type=request.body_type,
+        to_recipients=request.to_recipients or None,
+        cc_recipients=request.cc_recipients or None,
+        bcc_recipients=request.bcc_recipients or None,
+        importance=request.importance,
+    )
 
 
 @router.post("/messages", dependencies=[Depends(require_permission("write:mail"))])
