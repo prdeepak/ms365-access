@@ -9,6 +9,7 @@ from app.services.graph_client import GraphClient
 from app.services.mail_service import MailService
 from app.schemas import (
     CreateDraftRequest,
+    DraftReplyRequest,
     SendMailRequest,
     ReplyMailRequest,
     ForwardMailRequest,
@@ -177,6 +178,7 @@ async def send_draft(
 async def create_reply_draft(
     message_id: str,
     reply_all: bool = Query(False, description="Create reply-all draft instead of reply"),
+    request: Optional[DraftReplyRequest] = None,
     mail_service: MailService = Depends(get_mail_service),
 ):
     """Create a draft reply to a message (does not send it).
@@ -184,9 +186,11 @@ async def create_reply_draft(
     Returns the draft message object with its ID. Use PATCH /mail/messages/{draft_id}
     to update the body before sending.
     """
+    comment = request.comment if request else ""
     result = await mail_service.create_reply_draft(
         message_id=message_id,
         reply_all=reply_all,
+        comment=comment,
     )
     return result
 

@@ -228,15 +228,17 @@ class MailService:
         return await self.client.post("/me/messages", payload)
 
     async def create_reply_draft(
-        self, message_id: str, reply_all: bool = False
+        self, message_id: str, reply_all: bool = False, comment: str = ""
     ) -> dict:
         """Create a draft reply to a message (does not send it).
 
         Uses MS Graph createReply/createReplyAll which creates a draft
         message in the Drafts folder with the proper reply headers.
+        The optional comment is inserted as the reply body text.
         """
         endpoint = f"/me/messages/{message_id}/{'createReplyAll' if reply_all else 'createReply'}"
-        return await self.client.post(endpoint, {})
+        data = {"comment": comment} if comment else {}
+        return await self.client.post(endpoint, data)
 
     async def search_messages(
         self,
