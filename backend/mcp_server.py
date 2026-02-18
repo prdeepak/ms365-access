@@ -545,6 +545,26 @@ def sharepoint_get_item(item_id: str) -> str:
 # Entry point
 # ===========================================================================
 
+MCP_AUTH_TOKEN = os.environ.get("MCP_AUTH_TOKEN", "")
+
+
+def _make_auth_middleware(app):
+    """Wrap a Starlette ASGI app with Bearer token auth."""
+    from starlette.responses import Response as StarletteResponse
+
+    async def middleware(scope, receive, send):
+        if scope["type"] == "http" and MCP_AUTH_TOKEN:
+            headers = dict(scope.get("headers", []))
+            auth = headers.get(b"authorization", b"").decode()
+            if auth != f"Bearer {MCP_AUTH_TOKEN}":
+                response = StarletteResponse("Unauthorized", status_code=401)
+                await response(scope, receive, send)
+                return
+        await app(scope, receive, send)
+
+    return middleware
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MS365 Access MCP Server")
     parser.add_argument(
@@ -561,7 +581,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.transport != "stdio":
-        mcp.settings.port = args.port
-
-    mcp.run(transport=args.transport)
+    if args.transport == "streamable-http":
+        import uvicorn
+        app = mcp.streamable_http_app()
+        if MCP_AUTH_TOKEN:
+            logger.info("MCP bearer auth enabled")
+            app = _make_auth_middleware(app)
+        uvicorn.run(app, host=_host, port=args.port)
+    else:
+        mcp.run(transport="stdio")
