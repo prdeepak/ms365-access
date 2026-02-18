@@ -326,16 +326,24 @@ def calendar_list_calendars() -> str:
 def calendar_list_events(
     calendar_id: str | None = None,
     top: int = 25,
+    skip: int = 0,
+    order_by: str = "start/dateTime desc",
     filter: str | None = None,
 ) -> str:
-    """List upcoming calendar events.
+    """List calendar events from the event store (newest first by default).
+
+    NOTE: This queries raw event records and does NOT expand recurring events —
+    a weekly meeting appears as a single master record. For date-range queries
+    that expand recurrences into individual occurrences, use calendar_view instead.
 
     Args:
         calendar_id: Calendar ID (default: primary)
         top: Max events (default 25)
+        skip: Number of events to skip for pagination (default 0)
+        order_by: OData $orderby expression (default "start/dateTime desc" — newest first). Use "start/dateTime" for oldest first.
         filter: OData filter expression
     """
-    params = {"top": top, "filter": filter}
+    params = {"top": top, "skip": skip, "order_by": order_by, "filter": filter}
     if calendar_id:
         params["calendar_id"] = calendar_id
     return json.dumps(_get("/calendar/events", params), default=str)
@@ -355,17 +363,29 @@ def calendar_get_event(event_id: str) -> str:
 def calendar_view(
     start_datetime: str,
     end_datetime: str,
+    calendar_id: str | None = None,
+    top: int = 100,
 ) -> str:
-    """Get calendar events in a date range (calendar view).
+    """Get calendar events in a date range — the preferred tool for upcoming events.
+
+    Unlike calendar_list_events, this expands recurring events into individual
+    occurrences within the requested window. Use this for "what's on my calendar
+    today/this week" queries.
 
     Args:
-        start_datetime: Start in ISO 8601 (e.g. '2024-03-01T00:00:00')
-        end_datetime: End in ISO 8601 (e.g. '2024-03-07T23:59:59')
+        start_datetime: Start in ISO 8601 (e.g. '2026-02-18T00:00:00')
+        end_datetime: End in ISO 8601 (e.g. '2026-02-18T23:59:59')
+        calendar_id: Calendar ID (default: primary)
+        top: Max events to return (default 100)
     """
-    return json.dumps(_get("/calendar/view", {
+    params = {
         "start_datetime": start_datetime,
         "end_datetime": end_datetime,
-    }), default=str)
+        "top": top,
+    }
+    if calendar_id:
+        params["calendar_id"] = calendar_id
+    return json.dumps(_get("/calendar/view", params), default=str)
 
 
 @mcp.tool()

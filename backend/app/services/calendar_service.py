@@ -47,8 +47,8 @@ class CalendarService:
             endpoint = "/me/calendarView"
 
         params = {
-            "startDateTime": start_datetime.isoformat() + "Z",
-            "endDateTime": end_datetime.isoformat() + "Z",
+            "startDateTime": start_datetime.replace(tzinfo=None).isoformat() + "Z",
+            "endDateTime": end_datetime.replace(tzinfo=None).isoformat() + "Z",
             "$top": top,
         }
 
