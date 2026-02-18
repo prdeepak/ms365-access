@@ -180,6 +180,26 @@ def mail_create_draft(
 
 
 @mcp.tool()
+def mail_create_reply_draft(
+    message_id: str,
+    reply_all: bool = False,
+) -> str:
+    """Create a draft reply to a message (does not send it).
+
+    Requires write:draft permission. Returns the draft message object with its
+    ID — use mail_update to edit the body before sending.
+
+    Args:
+        message_id: ID of the message to reply to
+        reply_all: Create reply-all draft instead of reply (default False)
+    """
+    url = f"/mail/messages/{message_id}/draftReply"
+    if reply_all:
+        url += "?reply_all=true"
+    return json.dumps(_post(url), default=str)
+
+
+@mcp.tool()
 def mail_send(
     subject: str,
     body: str,
