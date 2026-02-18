@@ -182,6 +182,7 @@ def mail_create_draft(
 @mcp.tool()
 def mail_create_reply_draft(
     message_id: str,
+    comment: str = "",
     reply_all: bool = False,
 ) -> str:
     """Create a draft reply to a message (does not send it).
@@ -191,12 +192,13 @@ def mail_create_reply_draft(
 
     Args:
         message_id: ID of the message to reply to
+        comment: Reply text to prepend to the quoted thread (default empty)
         reply_all: Create reply-all draft instead of reply (default False)
     """
     url = f"/mail/messages/{message_id}/draftReply"
     if reply_all:
         url += "?reply_all=true"
-    return json.dumps(_post(url), default=str)
+    return json.dumps(_post(url, {"comment": comment} if comment else None), default=str)
 
 
 @mcp.tool()
@@ -260,19 +262,26 @@ def mail_update(
     message_id: str,
     is_read: bool | None = None,
     flag: str | None = None,
+    body: str | None = None,
+    body_type: str = "HTML",
 ) -> str:
-    """Update message properties (mark read/unread, flag).
+    """Update message properties (mark read/unread, flag, body content).
 
     Args:
         message_id: Message ID
         is_read: Mark as read (True) or unread (False)
         flag: Flag status - 'flagged', 'complete', or 'notFlagged'
+        body: New body content (HTML or plain text)
+        body_type: 'HTML' or 'Text' (default 'HTML')
     """
     data = {}
     if is_read is not None:
         data["isRead"] = is_read
     if flag:
         data["flag"] = {"flagStatus": flag}
+    if body is not None:
+        data["body"] = body
+        data["body_type"] = body_type
     return json.dumps(_patch(f"/mail/messages/{message_id}", data), default=str)
 
 

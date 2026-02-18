@@ -76,6 +76,10 @@ class SendMailRequest(BaseModel):
     save_to_sent_items: bool = True
 
 
+class DraftReplyRequest(BaseModel):
+    comment: str = ""
+
+
 class ReplyMailRequest(BaseModel):
     comment: str
     reply_all: bool = False
