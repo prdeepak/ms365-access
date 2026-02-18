@@ -30,3 +30,13 @@ async def get_db() -> AsyncSession:
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Lightweight migrations for columns added after initial schema creation.
+        # SQLite: ADD COLUMN is safe to run repeatedly (fails silently if column exists).
+        migrations = [
+            "ALTER TABLE api_keys ADD COLUMN tier VARCHAR(64)",
+        ]
+        for sql in migrations:
+            try:
+                await conn.execute(__import__("sqlalchemy").text(sql))
+            except Exception:
+                pass  # Column already exists

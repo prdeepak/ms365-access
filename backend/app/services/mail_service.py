@@ -196,6 +196,37 @@ class MailService:
         """Send an existing draft message."""
         await self.client.post(f"/me/messages/{message_id}/send", {})
 
+    async def create_draft(
+        self,
+        subject: str,
+        body: str = "",
+        body_type: str = "HTML",
+        to_recipients: list[str] | None = None,
+        cc_recipients: list[str] | None = None,
+        bcc_recipients: list[str] | None = None,
+        importance: str = "normal",
+    ) -> dict:
+        """Create a new draft message in the Drafts folder (does not send it).
+
+        Uses POST /me/messages, which saves to Drafts without sending.
+        """
+        def _addr(addresses: list[str]) -> list[dict]:
+            return [{"emailAddress": {"address": a}} for a in addresses]
+
+        payload: dict = {
+            "subject": subject,
+            "body": {"contentType": body_type, "content": body},
+            "importance": importance,
+        }
+        if to_recipients:
+            payload["toRecipients"] = _addr(to_recipients)
+        if cc_recipients:
+            payload["ccRecipients"] = _addr(cc_recipients)
+        if bcc_recipients:
+            payload["bccRecipients"] = _addr(bcc_recipients)
+
+        return await self.client.post("/me/messages", payload)
+
     async def create_reply_draft(
         self, message_id: str, reply_all: bool = False
     ) -> dict:

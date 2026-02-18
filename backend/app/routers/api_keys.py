@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import require_permission, VALID_PERMISSIONS
+from app.dependencies import require_permission, VALID_PERMISSIONS, TIER_PERMISSIONS
 from app.models import ApiKey
 from app.schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyResponse, ApiKeyUpdate
 from app import audit
@@ -26,6 +26,7 @@ def _to_response(api_key: ApiKey) -> dict:
     return {
         "id": api_key.id,
         "name": api_key.name,
+        "tier": api_key.tier,
         "permissions": _parse_permissions(api_key),
         "created_at": api_key.created_at,
         "last_used_at": api_key.last_used_at,
@@ -50,14 +51,37 @@ async def create_api_key(
     db: AsyncSession = Depends(get_db),
     _: ApiKey = Depends(require_permission("admin")),
 ):
-    """Create a new API key. The raw key is returned only once."""
-    # Validate permissions
-    invalid = set(request.permissions) - VALID_PERMISSIONS
-    if invalid:
+    """Create a new API key. The raw key is returned only once.
+
+    Supply either `tier` (e.g. "openclaw") to use a predefined permission set,
+    or supply an explicit `permissions` list. Providing both is an error.
+    """
+    # Resolve permissions from tier or explicit list
+    if request.tier and request.permissions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid permissions: {', '.join(sorted(invalid))}",
+            detail="Provide either 'tier' or 'permissions', not both.",
         )
+    if request.tier:
+        if request.tier not in TIER_PERMISSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown tier '{request.tier}'. Valid tiers: {', '.join(sorted(TIER_PERMISSIONS))}",
+            )
+        resolved_permissions = TIER_PERMISSIONS[request.tier]
+    else:
+        if not request.permissions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Provide either 'tier' or a non-empty 'permissions' list.",
+            )
+        invalid = set(request.permissions) - VALID_PERMISSIONS
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid permissions: {', '.join(sorted(invalid))}",
+            )
+        resolved_permissions = request.permissions
 
     # Check for duplicate name
     existing = await db.execute(select(ApiKey).where(ApiKey.name == request.name))
@@ -73,7 +97,8 @@ async def create_api_key(
     api_key = ApiKey(
         key_hash=key_hash,
         name=request.name,
-        permissions=json.dumps(sorted(request.permissions)),
+        tier=request.tier,
+        permissions=json.dumps(sorted(resolved_permissions)),
     )
     db.add(api_key)
     await db.commit()

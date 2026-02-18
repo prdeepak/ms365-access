@@ -231,7 +231,6 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 100,
               "minimum": 1,
               "default": 25,
               "title": "Top"
@@ -494,6 +493,51 @@
             }
           }
         }
+      }
+    },
+    "/mail/drafts": {
+      "post": {
+        "tags": [
+          "mail"
+        ],
+        "summary": "Create Draft",
+        "description": "Create a new draft message in Drafts folder (does not send).\n\nRequires write:draft permission. To send the draft later, use\nPOST /mail/messages/{draft_id}/send (requires write:mail).",
+        "operationId": "create_draft_mail_drafts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/mail/messages/{message_id}/send": {
@@ -894,7 +938,6 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 100,
               "minimum": 1,
               "default": 25,
               "title": "Top"
@@ -990,7 +1033,6 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 100,
               "minimum": 1,
               "default": 25,
               "title": "Top"
@@ -2744,7 +2786,7 @@
           "api-keys"
         ],
         "summary": "Create Api Key",
-        "description": "Create a new API key. The raw key is returned only once.",
+        "description": "Create a new API key. The raw key is returned only once.\n\nSupply either `tier` (e.g. \"openclaw\") to use a predefined permission set,\nor supply an explicit `permissions` list. Providing both is an error.",
         "operationId": "create_api_key_api_keys_post",
         "requestBody": {
           "content": {
@@ -2928,18 +2970,29 @@
             "type": "string",
             "title": "Name"
           },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
           "permissions": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Permissions"
+            "title": "Permissions",
+            "default": []
           }
         },
         "type": "object",
         "required": [
-          "name",
-          "permissions"
+          "name"
         ],
         "title": "ApiKeyCreate"
       },
@@ -2952,6 +3005,17 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
           },
           "permissions": {
             "items": {
@@ -3007,6 +3071,17 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
           },
           "permissions": {
             "items": {
@@ -3175,6 +3250,58 @@
           "file"
         ],
         "title": "Body_upload_content_files_items__parent_id____filename___content_put"
+      },
+      "CreateDraftRequest": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "default": ""
+          },
+          "body_type": {
+            "type": "string",
+            "title": "Body Type",
+            "default": "HTML"
+          },
+          "to_recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "To Recipients",
+            "default": []
+          },
+          "cc_recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Cc Recipients",
+            "default": []
+          },
+          "bcc_recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bcc Recipients",
+            "default": []
+          },
+          "importance": {
+            "type": "string",
+            "title": "Importance",
+            "default": "normal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject"
+        ],
+        "title": "CreateDraftRequest"
       },
       "CreateEventRequest": {
         "properties": {

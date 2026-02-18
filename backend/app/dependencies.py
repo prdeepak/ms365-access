@@ -27,6 +27,18 @@ VALID_PERMISSIONS = {
     "admin",
 }
 
+# Named permission tiers — use when creating API keys with POST /api-keys {"tier": "..."}
+# Each tier is a minimal, expandable permission set. "admin" grants all permissions implicitly.
+TIER_PERMISSIONS: dict[str, list[str]] = {
+    "admin": ["admin"],
+    "openclaw": [
+        "read:mail",
+        "write:draft",      # create/edit drafts; NOT write:mail (no send/reply/move/delete)
+        "read:calendar",
+        "write:calendar",
+    ],
+}
+
 bearer_scheme = HTTPBearer()
 
 

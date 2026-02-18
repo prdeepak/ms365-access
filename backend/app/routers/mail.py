@@ -8,6 +8,7 @@ from app.dependencies import get_graph_client, get_current_auth, require_permiss
 from app.services.graph_client import GraphClient
 from app.services.mail_service import MailService
 from app.schemas import (
+    CreateDraftRequest,
     SendMailRequest,
     ReplyMailRequest,
     ForwardMailRequest,
@@ -69,7 +70,7 @@ async def list_messages(
         None,
         description="Actual folder ID. Takes precedence over 'folder' if both provided.",
     ),
-    top: int = Query(25, ge=1, le=100),
+    top: int = Query(25, ge=1),
     skip: int = Query(0, ge=0),
     search: Optional[str] = None,
     filter: Optional[str] = None,
@@ -81,6 +82,9 @@ async def list_messages(
     Note: MS Graph API can cache results when querying folders by well-known name.
     This endpoint resolves folder names to IDs internally to ensure fresh results.
     """
+    # MS Graph API caps $top at 100 per page
+    top = min(top, 100)
+
     # Resolve folder name to ID if folder is provided but folder_id is not
     resolved_folder_id = folder_id
     if folder and not folder_id:
@@ -114,6 +118,27 @@ async def get_message(
     mail_service: MailService = Depends(get_mail_service),
 ):
     return await mail_service.get_message(message_id)
+
+
+@router.post("/drafts", dependencies=[Depends(require_permission("write:draft"))], status_code=201)
+async def create_draft(
+    request: CreateDraftRequest,
+    mail_service: MailService = Depends(get_mail_service),
+):
+    """Create a new draft message in Drafts folder (does not send).
+
+    Requires write:draft permission. To send the draft later, use
+    POST /mail/messages/{draft_id}/send (requires write:mail).
+    """
+    return await mail_service.create_draft(
+        subject=request.subject,
+        body=request.body,
+        body_type=request.body_type,
+        to_recipients=request.to_recipients or None,
+        cc_recipients=request.cc_recipients or None,
+        bcc_recipients=request.bcc_recipients or None,
+        importance=request.importance,
+    )
 
 
 @router.post("/messages", dependencies=[Depends(require_permission("write:mail"))])
@@ -304,10 +329,11 @@ async def batch_delete_messages(
 @router.get("/search", dependencies=[Depends(require_permission("read:mail"))])
 async def search_messages(
     q: str,
-    top: int = Query(25, ge=1, le=100),
+    top: int = Query(25, ge=1),
     skip: int = Query(0, ge=0),
     mail_service: MailService = Depends(get_mail_service),
 ):
+    top = min(top, 100)
     result = await mail_service.search_messages(query=q, top=top, skip=skip)
     return {
         "items": result.get("value", []),
@@ -325,13 +351,15 @@ async def list_threads(
         None,
         description="Actual folder ID. Takes precedence over 'folder' if both provided.",
     ),
-    top: int = Query(25, ge=1, le=100),
+    top: int = Query(25, ge=1),
     mail_service: MailService = Depends(get_mail_service),
 ):
     """List messages grouped by conversationId, ordered by most recent thread activity.
 
     Returns threads with: conversationId, subject, messages[], latestDateTime, messageCount.
     """
+    top = min(top, 100)
+
     # Resolve folder name to ID if needed
     resolved_folder_id = folder_id
     if folder and not folder_id:
