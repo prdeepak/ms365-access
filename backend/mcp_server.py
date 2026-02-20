@@ -66,6 +66,20 @@ def _patch(path: str, data: dict | None = None) -> dict | list | str:
         return r.json()
 
 
+def _plain_to_html(text: str) -> str:
+    """Convert plain text to HTML if it contains no HTML tags.
+
+    Preserves newlines as <br> and escapes HTML entities so plain-text
+    bodies render correctly in Outlook.
+    """
+    import html as _html
+    import re
+    if re.search(r"<[a-zA-Z][^>]*>", text):
+        return text  # already contains HTML tags
+    escaped = _html.escape(text)
+    return escaped.replace("\n", "<br>\n")
+
+
 def _delete(path: str) -> dict | str:
     with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=30) as c:
         r = c.delete(path)
@@ -161,16 +175,22 @@ def mail_create_draft(
 ) -> str:
     """Create a new draft email in the Drafts folder (does not send it).
 
-    Requires write:draft permission. The returned message object contains the
-    draft ID — use mail_update to edit it or (if permitted) mail_send_draft to send.
+    For NEW emails only. To reply to an existing thread, use mail_create_reply_draft
+    instead — it preserves threading and conversation context in Outlook.
+
+    Plain text bodies are auto-converted to HTML (newlines become <br>) so
+    formatting is preserved in Outlook. You can also pass raw HTML directly.
 
     Args:
         subject: Email subject
-        body: Email body content (default empty)
+        body: Email body content (default empty). Plain text newlines are preserved.
         to_recipients: List of recipient email addresses (optional)
         cc_recipients: CC recipients (optional)
         body_type: 'HTML' or 'Text' (default 'HTML')
     """
+    # Auto-convert plain text newlines to HTML so Outlook preserves formatting
+    if body_type.upper() == "HTML" and body:
+        body = _plain_to_html(body)
     data: dict = {"subject": subject, "body": body, "body_type": body_type}
     if to_recipients:
         data["to_recipients"] = to_recipients
@@ -187,14 +207,18 @@ def mail_create_reply_draft(
 ) -> str:
     """Create a draft reply to a message (does not send it).
 
-    Requires write:draft permission. Returns the draft message object with its
-    ID — use mail_update to edit the body before sending.
+    This is the correct tool for replying to existing emails — it preserves
+    the conversation thread in Outlook. Plain text newlines in the comment
+    are auto-converted to HTML <br> tags.
 
     Args:
         message_id: ID of the message to reply to
-        comment: Reply text to prepend to the quoted thread (default empty)
+        comment: Reply text to prepend to the quoted thread (default empty). Newlines preserved.
         reply_all: Create reply-all draft instead of reply (default False)
     """
+    # Auto-convert plain text newlines to HTML so Outlook preserves formatting
+    if comment:
+        comment = _plain_to_html(comment)
     url = f"/mail/messages/{message_id}/draftReply"
     if reply_all:
         url += "?reply_all=true"
