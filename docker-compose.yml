@@ -29,6 +29,8 @@ services:
       - "127.0.0.1:8367:8367"
     volumes:
       - ./backend:/app
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
       - MS365_API_URL=http://api:8365

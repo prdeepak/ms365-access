@@ -626,7 +626,13 @@ def _make_auth_middleware(app):
     from starlette.responses import Response as StarletteResponse
 
     async def middleware(scope, receive, send):
-        if scope["type"] == "http" and MCP_AUTH_TOKEN:
+        if scope["type"] == "http":
+            if not MCP_AUTH_TOKEN:
+                response = StarletteResponse(
+                    "MCP_AUTH_TOKEN not configured", status_code=503
+                )
+                await response(scope, receive, send)
+                return
             headers = dict(scope.get("headers", []))
             auth = headers.get(b"authorization", b"").decode()
             if auth != f"Bearer {MCP_AUTH_TOKEN}":
