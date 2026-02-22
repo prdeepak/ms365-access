@@ -615,6 +615,46 @@ def sharepoint_get_item(item_id: str) -> str:
 
 
 # ===========================================================================
+# Email Linter Tool
+# ===========================================================================
+
+@mcp.tool()
+def lint_email_addresses(addresses: list[str]) -> str:
+    """Lint email addresses: enrich with display names from entity graph and Google Contacts.
+
+    Call this before drafting emails to ensure addresses have correct display names.
+    Returns each address with a warning: "enriched" (name found and applied),
+    null (already correct), or "unknown" (no match found).
+
+    Args:
+        addresses: List of email address strings (bare emails or "Name <email>" format)
+    """
+    from lib.email_linter import lint_addresses_sync, load_entity_index
+
+    entity_index = load_entity_index()
+
+    gsuite_api_key = os.environ.get("GSUITE_API_KEY", "")
+
+    def contact_lookup(email: str) -> str | None:
+        try:
+            r = httpx.get(
+                "http://127.0.0.1:8001/contacts/by-email/" + email,
+                params={"account": "personal"},
+                headers={"Authorization": f"Bearer {gsuite_api_key}"},
+                timeout=5,
+            )
+            if r.status_code == 200:
+                data = r.json()
+                return data.get("name") if data.get("found") else None
+        except Exception as e:
+            logger.warning("Contact lookup failed for %s: %s", email, e)
+        return None
+
+    result = lint_addresses_sync(addresses, entity_index, contact_lookup)
+    return json.dumps(result, default=str)
+
+
+# ===========================================================================
 # Entry point
 # ===========================================================================
 
