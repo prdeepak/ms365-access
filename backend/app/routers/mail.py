@@ -106,11 +106,7 @@ async def list_messages(
         filter_query=filter,
         order_by=order_by,
     )
-    return {
-        "items": result.get("value", []),
-        "next_link": result.get("@odata.nextLink"),
-        "folder_id": resolved_folder_id,  # Include resolved ID for transparency
-    }
+    return result.get("value", [])
 
 
 @router.get("/messages/{message_id}", dependencies=[Depends(require_permission("read:mail"))])
@@ -339,10 +335,7 @@ async def search_messages(
 ):
     top = min(top, 100)
     result = await mail_service.search_messages(query=q, top=top, skip=skip)
-    return {
-        "items": result.get("value", []),
-        "next_link": result.get("@odata.nextLink"),
-    }
+    return result.get("value", [])
 
 
 @router.get("/threads", dependencies=[Depends(require_permission("read:mail"))])
@@ -378,7 +371,7 @@ async def list_threads(
         folder_id=resolved_folder_id,
         top=top,
     )
-    return {"items": threads, "count": len(threads)}
+    return threads
 
 
 @router.get("/messages/{message_id}/attachments", dependencies=[Depends(require_permission("read:mail"))])
@@ -388,7 +381,7 @@ async def list_attachments(
 ):
     """List attachments for a message (id, name, size, contentType)."""
     attachments = await mail_service.list_attachments(message_id)
-    return {"items": attachments}
+    return attachments
 
 
 @router.get("/messages/{message_id}/attachments/{attachment_id}", dependencies=[Depends(require_permission("read:mail"))])

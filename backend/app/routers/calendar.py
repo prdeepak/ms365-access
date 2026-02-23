@@ -68,10 +68,7 @@ async def list_events(
         filter_query=filter,
     )
     items = [convert_event_to_local_tz(e, settings.local_timezone) for e in result.get("value", [])]
-    return {
-        "items": items,
-        "next_link": result.get("@odata.nextLink"),
-    }
+    return items
 
 
 @router.get("/view", dependencies=[Depends(require_permission("read:calendar"))])
@@ -90,10 +87,7 @@ async def get_calendar_view(
         top=top,
     )
     items = [convert_event_to_local_tz(e, settings.local_timezone) for e in result.get("value", [])]
-    return {
-        "items": items,
-        "next_link": result.get("@odata.nextLink"),
-    }
+    return items
 
 
 @router.get("/events/{event_id}", dependencies=[Depends(require_permission("read:calendar"))])

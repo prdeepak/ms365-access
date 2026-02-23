@@ -54,10 +54,7 @@ async def list_children(
         skip=skip,
         order_by=order_by,
     )
-    return {
-        "items": result.get("value", []),
-        "next_link": result.get("@odata.nextLink"),
-    }
+    return result.get("value", [])
 
 
 @router.get("/items/{item_id}/content", dependencies=[Depends(require_permission("read:files"))])
@@ -152,7 +149,4 @@ async def search_files(
     onedrive_service: OneDriveService = Depends(get_onedrive_service),
 ):
     result = await onedrive_service.search(query=q, drive_id=drive_id, top=top)
-    return {
-        "items": result.get("value", []),
-        "next_link": result.get("@odata.nextLink"),
-    }
+    return result.get("value", [])
