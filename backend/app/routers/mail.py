@@ -76,6 +76,7 @@ async def list_messages(
     search: Optional[str] = None,
     filter: Optional[str] = None,
     order_by: str = "receivedDateTime desc",
+    include_body: bool = Query(False, description="Include truncated plain-text body (~2000 chars)"),
     mail_service: MailService = Depends(get_mail_service),
 ):
     """List messages from a folder.
@@ -105,6 +106,7 @@ async def list_messages(
         search=search,
         filter_query=filter,
         order_by=order_by,
+        include_body=include_body,
     )
     return result.get("value", [])
 
@@ -330,11 +332,10 @@ async def batch_delete_messages(
 async def search_messages(
     q: str,
     top: int = Query(25, ge=1),
-    skip: int = Query(0, ge=0),
     mail_service: MailService = Depends(get_mail_service),
 ):
     top = min(top, 100)
-    result = await mail_service.search_messages(query=q, top=top, skip=skip)
+    result = await mail_service.search_messages(query=q, top=top)
     return result.get("value", [])
 
 

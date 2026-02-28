@@ -73,9 +73,11 @@ class GraphClient:
             "Content-Type": "application/json",
         }
 
-    async def get(self, endpoint: str, params: Optional[dict] = None) -> dict:
+    async def get(self, endpoint: str, params: Optional[dict] = None, extra_headers: Optional[dict] = None) -> dict:
         client = await self._get_client()
         headers = await self._get_headers()
+        if extra_headers:
+            headers.update(extra_headers)
         url = f"{self.base_url}{endpoint}"
         response = await client.get(url, headers=headers, params=params)
         response.raise_for_status()

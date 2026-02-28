@@ -39,6 +39,7 @@ class Settings(BaseSettings):
         "Mail.ReadWrite",
         "Mail.Send",
         "Calendars.ReadWrite",
+        "Contacts.ReadWrite",
         "Files.ReadWrite.All",
         "offline_access",
     ]

@@ -8,7 +8,7 @@ import httpx
 
 from app.config import get_settings
 from app.database import init_db
-from app.routers import auth, mail, calendar, files, sharepoint, api_keys
+from app.routers import auth, mail, calendar, contacts, files, sharepoint, api_keys
 
 # Configure logging
 logging.basicConfig(
@@ -76,6 +76,7 @@ app.include_router(auth.router)
 # All data routes require API key auth (enforced per-route via require_permission)
 app.include_router(mail.router)
 app.include_router(calendar.router)
+app.include_router(contacts.router)
 app.include_router(files.router)
 app.include_router(sharepoint.router)
 # API key management routes (admin-only, also protected by require_permission)
