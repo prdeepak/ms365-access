@@ -35,9 +35,7 @@ async def list_drives(
 ):
     """List document libraries (drives) for a SharePoint site."""
     result = await sharepoint_service.list_drives(site_id)
-    return {
-        "drives": result.get("value", []),
-    }
+    return result.get("value", [])
 
 
 @router.get("/items/{item_id}/children")
@@ -55,10 +53,7 @@ async def list_children(
         top=top,
         order_by=order_by,
     )
-    return {
-        "items": result.get("value", []),
-        "next_link": result.get("@odata.nextLink"),
-    }
+    return result.get("value", [])
 
 
 @router.get("/items/{item_id}/content")
@@ -101,10 +96,7 @@ async def search(
 ):
     """Search within a SharePoint drive."""
     result = await sharepoint_service.search(drive_id=drive_id, query=q, top=top)
-    return {
-        "items": result.get("value", []),
-        "next_link": result.get("@odata.nextLink"),
-    }
+    return result.get("value", [])
 
 
 @router.get("/resolve")

@@ -19,10 +19,12 @@ logger = logging.getLogger(__name__)
 VALID_PERMISSIONS = {
     "read:mail",
     "read:calendar",
+    "read:contacts",
     "read:files",
     "write:draft",
     "write:mail",
     "write:calendar",
+    "write:contacts",
     "write:files",
     "admin",
 }
@@ -36,6 +38,8 @@ TIER_PERMISSIONS: dict[str, list[str]] = {
         "write:draft",      # create/edit drafts; NOT write:mail (no send/reply/move/delete)
         "read:calendar",
         "write:calendar",
+        "read:contacts",
+        "write:contacts",
     ],
 }
 

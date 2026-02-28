@@ -76,6 +76,7 @@ async def list_messages(
     search: Optional[str] = None,
     filter: Optional[str] = None,
     order_by: str = "receivedDateTime desc",
+    include_body: bool = Query(False, description="Include truncated plain-text body (~2000 chars)"),
     mail_service: MailService = Depends(get_mail_service),
 ):
     """List messages from a folder.
@@ -105,12 +106,9 @@ async def list_messages(
         search=search,
         filter_query=filter,
         order_by=order_by,
+        include_body=include_body,
     )
-    return {
-        "items": result.get("value", []),
-        "next_link": result.get("@odata.nextLink"),
-        "folder_id": resolved_folder_id,  # Include resolved ID for transparency
-    }
+    return result.get("value", [])
 
 
 @router.get("/messages/{message_id}", dependencies=[Depends(require_permission("read:mail"))])
@@ -334,15 +332,11 @@ async def batch_delete_messages(
 async def search_messages(
     q: str,
     top: int = Query(25, ge=1),
-    skip: int = Query(0, ge=0),
     mail_service: MailService = Depends(get_mail_service),
 ):
     top = min(top, 100)
-    result = await mail_service.search_messages(query=q, top=top, skip=skip)
-    return {
-        "items": result.get("value", []),
-        "next_link": result.get("@odata.nextLink"),
-    }
+    result = await mail_service.search_messages(query=q, top=top)
+    return result.get("value", [])
 
 
 @router.get("/threads", dependencies=[Depends(require_permission("read:mail"))])
@@ -378,7 +372,7 @@ async def list_threads(
         folder_id=resolved_folder_id,
         top=top,
     )
-    return {"items": threads, "count": len(threads)}
+    return threads
 
 
 @router.get("/messages/{message_id}/attachments", dependencies=[Depends(require_permission("read:mail"))])
@@ -388,7 +382,7 @@ async def list_attachments(
 ):
     """List attachments for a message (id, name, size, contentType)."""
     attachments = await mail_service.list_attachments(message_id)
-    return {"items": attachments}
+    return attachments
 
 
 @router.get("/messages/{message_id}/attachments/{attachment_id}", dependencies=[Depends(require_permission("read:mail"))])

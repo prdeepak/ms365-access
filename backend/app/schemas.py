@@ -306,6 +306,40 @@ class ApiKeyUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+# Contact schemas
+class Contact(BaseModel):
+    id: str
+    display_name: Optional[str] = Field(None, alias="displayName")
+    given_name: Optional[str] = Field(None, alias="givenName")
+    surname: Optional[str] = None
+    email_addresses: list[dict] = Field(default_factory=list, alias="emailAddresses")
+    mobile_phone: Optional[str] = Field(None, alias="mobilePhone")
+    company_name: Optional[str] = Field(None, alias="companyName")
+    job_title: Optional[str] = Field(None, alias="jobTitle")
+    personal_notes: Optional[str] = Field(None, alias="personalNotes")
+
+    class Config:
+        populate_by_name = True
+
+
+class CreateContactRequest(BaseModel):
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    organization: Optional[str] = None
+    title: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class UpdateContactRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    organization: Optional[str] = None
+    title: Optional[str] = None
+    notes: Optional[str] = None
+
+
 # Pagination
 class PaginatedResponse(BaseModel):
     items: list

@@ -109,6 +109,7 @@ def mail_list_messages(
     top: int = 25,
     search: str | None = None,
     filter: str | None = None,
+    include_body: bool = False,
 ) -> str:
     """List email messages, optionally filtered by folder or search.
 
@@ -117,8 +118,9 @@ def mail_list_messages(
         top: Max messages to return (default 25)
         search: Free-text search query
         filter: OData filter expression (e.g. "isRead eq false")
+        include_body: Include truncated plain-text body (~2000 chars) alongside metadata (default False)
     """
-    params = {"top": top, "search": search, "filter": filter}
+    params = {"top": top, "search": search, "filter": filter, "include_body": include_body}
     if folder:
         params["folder_id"] = folder
     return json.dumps(_get("/mail/messages", params), default=str)
@@ -556,6 +558,57 @@ def files_get_item(item_id: str) -> str:
     return json.dumps(_get(f"/files/items/{item_id}"), default=str)
 
 
+@mcp.tool()
+def files_download_file(
+    item_id: str,
+    filename: str,
+    drive_id: str | None = None,
+    max_size_bytes: int = 10_485_760,
+) -> str:
+    """Download a OneDrive/SharePoint file (PDF, XLSX, DOCX, etc.) and save to a local temp file.
+
+    The file is saved to /tmp/ms365-download-{item_id}-{safe_filename}.
+
+    Args:
+        item_id: File item ID
+        filename: Original filename (for safe naming in /tmp)
+        drive_id: Drive ID (required for SharePoint drives)
+        max_size_bytes: Maximum file size in bytes (default 10MB)
+    """
+    import os
+    import re
+
+    # Sanitize filename
+    safe_filename = re.sub(r'[/\\:\x00]', '_', os.path.basename(filename))
+    if not safe_filename:
+        safe_filename = "download"
+
+    # Download raw bytes
+    params = {}
+    if drive_id:
+        params["drive_id"] = drive_id
+    with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=60) as c:
+        r = c.get(f"/files/items/{item_id}/content", params=params)
+        r.raise_for_status()
+        data = r.content
+
+    if len(data) > max_size_bytes:
+        return json.dumps({
+            "error": f"File too large: {len(data)} bytes (max {max_size_bytes})",
+            "size": len(data),
+        })
+
+    dest_path = f"/tmp/ms365-download-{item_id}-{safe_filename}"
+    with open(dest_path, "wb") as f:
+        f.write(data)
+
+    return json.dumps({
+        "path": dest_path,
+        "size": len(data),
+        "filename": safe_filename,
+    })
+
+
 # ===========================================================================
 # SharePoint Tools
 # ===========================================================================
@@ -612,6 +665,129 @@ def sharepoint_get_item(item_id: str) -> str:
         item_id: Item ID
     """
     return json.dumps(_get(f"/sharepoint/items/{item_id}"), default=str)
+
+
+# ===========================================================================
+# Contacts Tools
+# ===========================================================================
+
+@mcp.tool()
+def contacts_list(
+    top: int = 100,
+    skip: int = 0,
+    search: str | None = None,
+) -> str:
+    """List MS365 contacts. Optionally search by name or keyword.
+
+    Args:
+        top: Max contacts to return (default 100)
+        skip: Number to skip for pagination (default 0)
+        search: Free-text search query (optional)
+    """
+    params = {"top": top, "skip": skip}
+    if search:
+        params["search"] = search
+    return json.dumps(_get("/contacts/", params), default=str)
+
+
+@mcp.tool()
+def contacts_get(contact_id: str) -> str:
+    """Get a single MS365 contact by ID.
+
+    Args:
+        contact_id: Contact ID
+    """
+    return json.dumps(_get(f"/contacts/{contact_id}"), default=str)
+
+
+@mcp.tool()
+def contacts_create(
+    name: str,
+    email: str | None = None,
+    phone: str | None = None,
+    organization: str | None = None,
+    title: str | None = None,
+    notes: str | None = None,
+) -> str:
+    """Create a new MS365 contact.
+
+    Args:
+        name: Full name (given + surname)
+        email: Email address (optional)
+        phone: Mobile phone number (optional)
+        organization: Company/organization (optional)
+        title: Job title (optional)
+        notes: Personal notes (optional)
+    """
+    data = {"name": name}
+    if email:
+        data["email"] = email
+    if phone:
+        data["phone"] = phone
+    if organization:
+        data["organization"] = organization
+    if title:
+        data["title"] = title
+    if notes:
+        data["notes"] = notes
+    return json.dumps(_post("/contacts/", data), default=str)
+
+
+@mcp.tool()
+def contacts_update(
+    contact_id: str,
+    name: str | None = None,
+    email: str | None = None,
+    phone: str | None = None,
+    organization: str | None = None,
+    title: str | None = None,
+    notes: str | None = None,
+) -> str:
+    """Update an existing MS365 contact. Only provided fields are changed.
+
+    Args:
+        contact_id: Contact ID
+        name: New full name (optional)
+        email: New email address (optional)
+        phone: New phone number (optional)
+        organization: New company name (optional)
+        title: New job title (optional)
+        notes: New personal notes (optional)
+    """
+    data = {}
+    if name is not None:
+        data["name"] = name
+    if email is not None:
+        data["email"] = email
+    if phone is not None:
+        data["phone"] = phone
+    if organization is not None:
+        data["organization"] = organization
+    if title is not None:
+        data["title"] = title
+    if notes is not None:
+        data["notes"] = notes
+    return json.dumps(_patch(f"/contacts/{contact_id}", data), default=str)
+
+
+@mcp.tool()
+def contacts_delete(contact_id: str) -> str:
+    """Delete an MS365 contact.
+
+    Args:
+        contact_id: Contact ID
+    """
+    return json.dumps(_delete(f"/contacts/{contact_id}"), default=str)
+
+
+@mcp.tool()
+def contacts_search_by_email(email: str) -> str:
+    """Search for an MS365 contact by exact email address.
+
+    Args:
+        email: Email address to search for
+    """
+    return json.dumps(_get(f"/contacts/by-email/{email}"), default=str)
 
 
 # ===========================================================================

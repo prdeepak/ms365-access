@@ -34,6 +34,7 @@ class MailService:
         filter_query: Optional[str] = None,
         order_by: str = "receivedDateTime desc",
         select_fields: Optional[str] = None,
+        include_body: bool = False,
     ) -> dict:
         if folder_id:
             endpoint = f"/me/mailFolders/{folder_id}/messages"
@@ -49,15 +50,34 @@ class MailService:
         if select_fields:
             params["$select"] = select_fields
         else:
-            params["$select"] = "id,subject,bodyPreview,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,isRead,isDraft,hasAttachments,importance,flag"
+            fields = "id,subject,bodyPreview,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,isRead,isDraft,hasAttachments,importance,flag"
+            if include_body:
+                fields += ",body"
+            params["$select"] = fields
+
+        extra_headers = None
+        if include_body:
+            extra_headers = {"Prefer": 'outlook.body-content-type="text"'}
 
         if search:
             params["$search"] = f'"{search}"'
+            # Graph API rejects $skip and $orderby when combined with $search
+            params.pop("$skip", None)
+            params.pop("$orderby", None)
 
         if filter_query:
             params["$filter"] = filter_query
 
-        return await self.client.get(endpoint, params=params)
+        result = await self.client.get(endpoint, params=params, extra_headers=extra_headers)
+
+        # Truncate body content to 2000 chars when include_body is enabled
+        if include_body and "value" in result:
+            for msg in result["value"]:
+                body = msg.get("body")
+                if body and isinstance(body.get("content"), str):
+                    body["content"] = body["content"][:2000]
+
+        return result
 
     async def get_message(self, message_id: str) -> dict:
         return await self.client.get(f"/me/messages/{message_id}")
@@ -244,12 +264,10 @@ class MailService:
         self,
         query: str,
         top: int = 25,
-        skip: int = 0,
     ) -> dict:
         params = {
             "$search": f'"{query}"',
             "$top": top,
-            "$skip": skip,
             "$select": "id,subject,bodyPreview,from,toRecipients,receivedDateTime,isRead,hasAttachments",
         }
         return await self.client.get("/me/messages", params=params)
