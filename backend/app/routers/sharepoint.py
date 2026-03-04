@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from typing import Optional
 
 from app.dependencies import get_graph_client, get_current_auth
@@ -105,4 +105,7 @@ async def resolve_url(
     sharepoint_service: SharePointService = Depends(get_sharepoint_service),
 ):
     """Resolve a SharePoint sharing URL to item metadata + drive_id + item_id."""
-    return await sharepoint_service.resolve_sharepoint_url(url)
+    try:
+        return await sharepoint_service.resolve_sharepoint_url(url)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

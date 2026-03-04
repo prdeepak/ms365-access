@@ -1,7 +1,10 @@
+import logging
 from typing import Optional
 from urllib.parse import urlparse, unquote
 
 from app.services.graph_client import GraphClient
+
+logger = logging.getLogger(__name__)
 
 
 class SharePointService:
@@ -107,7 +110,7 @@ class SharePointService:
         try:
             result = await self.client.get(
                 f"/shares/{sharing_token}/driveItem",
-                params={"$expand": "parentReference"},
+                extra_headers={"Prefer": "redeemSharingLinkIfNecessary"},
             )
             return {
                 "item": result,
@@ -115,8 +118,15 @@ class SharePointService:
                 "drive_id": result.get("parentReference", {}).get("driveId"),
                 "site_id": result.get("parentReference", {}).get("siteId"),
             }
-        except Exception:
-            pass
+        except Exception as e:
+            detail = ""
+            if hasattr(e, "response"):
+                try:
+                    detail = e.response.json()
+                except Exception:
+                    detail = getattr(e.response, "text", "")
+            logger.warning("Shares API failed for %s: %s (detail: %s)", url, e, detail)
+            # Fall through to URL-parsing fallback
 
         # Fallback: try to parse the URL structure directly
         path = unquote(parsed.path)
@@ -146,25 +156,33 @@ class SharePointService:
 
         # Try each drive to find the item
         if doc_path:
-            # Strip common prefixes like /Shared Documents
+            # The drive's web URL typically ends with the library name
+            # (e.g. "/Shared Documents"). doc_path may redundantly include
+            # that prefix, so try both with and without stripping it.
             for drive in drives:
                 drive_id = drive["id"]
-                try:
-                    item = await self.client.get(
-                        f"/drives/{drive_id}/root:{doc_path}"
-                    )
-                    return {
-                        "item": item,
-                        "item_id": item.get("id"),
-                        "drive_id": drive_id,
-                        "site_id": site_id,
-                    }
-                except Exception:
-                    continue
+                # Build candidate paths: original, and stripped of library name
+                paths_to_try = [doc_path]
+                drive_web_url = drive.get("webUrl", "")
+                if drive_web_url:
+                    lib_suffix = urlparse(drive_web_url).path.split("/")[-1]
+                    lib_prefix = f"/{unquote(lib_suffix)}"
+                    if doc_path.startswith(lib_prefix):
+                        paths_to_try.insert(0, doc_path[len(lib_prefix):] or "/")
+                for p in paths_to_try:
+                    if not p or p == "/":
+                        continue
+                    try:
+                        item = await self.client.get(
+                            f"/drives/{drive_id}/root:{p}"
+                        )
+                        return {
+                            "item": item,
+                            "item_id": item.get("id"),
+                            "drive_id": drive_id,
+                            "site_id": site_id,
+                        }
+                    except Exception:
+                        continue
 
-        return {
-            "site": site,
-            "site_id": site_id,
-            "drives": drives,
-            "error": "Could not resolve to a specific item",
-        }
+        raise ValueError(f"Could not resolve URL to a specific item: {url}")
