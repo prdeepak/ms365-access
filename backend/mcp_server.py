@@ -667,6 +667,73 @@ def sharepoint_get_item(item_id: str) -> str:
     return json.dumps(_get(f"/sharepoint/items/{item_id}"), default=str)
 
 
+@mcp.tool()
+def sharepoint_resolve_url(url: str) -> str:
+    """Resolve a SharePoint sharing URL to drive_id and item_id.
+
+    Handles sharing links like https://contoso.sharepoint.com/:p:/s/SiteName/EaBC123...
+    Returns item metadata including drive_id and item_id for use with other SharePoint tools.
+
+    Args:
+        url: SharePoint sharing URL or document URL
+    """
+    return json.dumps(_get("/sharepoint/resolve", {"url": url}), default=str)
+
+
+@mcp.tool()
+def sharepoint_download_from_url(
+    url: str,
+    filename: str = "",
+    max_size_bytes: int = 10_485_760,
+) -> str:
+    """Download a SharePoint file directly from a sharing URL.
+
+    Resolves the sharing link to drive_id/item_id, then downloads the file to /tmp.
+
+    Args:
+        url: SharePoint sharing URL
+        filename: Optional filename override (auto-detected from metadata if empty)
+        max_size_bytes: Maximum file size in bytes (default 10MB)
+    """
+    import os
+    import re
+
+    # Step 1: Resolve URL to item metadata
+    resolved = _get("/sharepoint/resolve", {"url": url})
+    if not resolved or "error" in resolved:
+        return json.dumps({"error": f"Could not resolve URL: {resolved}"})
+
+    item_id = resolved.get("item_id")
+    drive_id = resolved.get("drive_id")
+    if not item_id or not drive_id:
+        return json.dumps({"error": "Resolved but missing item_id or drive_id", "resolved": resolved})
+
+    # Step 2: Determine filename
+    if not filename:
+        item = resolved.get("item", {})
+        filename = item.get("name", f"download-{item_id}")
+
+    safe_filename = re.sub(r'[/\\:\x00]', '_', os.path.basename(filename))
+    if not safe_filename:
+        safe_filename = "download"
+
+    # Step 3: Download
+    params = {"drive_id": drive_id}
+    with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=60) as c:
+        r = c.get(f"/files/items/{item_id}/content", params=params)
+        r.raise_for_status()
+        data = r.content
+
+    if len(data) > max_size_bytes:
+        return json.dumps({"error": f"File too large: {len(data)} bytes (max {max_size_bytes})", "size": len(data)})
+
+    dest_path = f"/tmp/ms365-download-{item_id}-{safe_filename}"
+    with open(dest_path, "wb") as f:
+        f.write(data)
+
+    return json.dumps({"path": dest_path, "size": len(data), "filename": safe_filename, "item_id": item_id, "drive_id": drive_id})
+
+
 # ===========================================================================
 # Contacts Tools
 # ===========================================================================
@@ -788,6 +855,81 @@ def contacts_search_by_email(email: str) -> str:
         email: Email address to search for
     """
     return json.dumps(_get(f"/contacts/by-email/{email}"), default=str)
+
+
+# ===========================================================================
+# Power BI Tools
+# ===========================================================================
+
+@mcp.tool()
+def powerbi_list_workspaces() -> str:
+    """List all Power BI workspaces the user has access to.
+
+    Returns workspace names, IDs, and capacity info.
+    """
+    return json.dumps(_get("/powerbi/workspaces"), default=str)
+
+
+@mcp.tool()
+def powerbi_list_datasets(workspace_id: str) -> str:
+    """List datasets in a Power BI workspace.
+
+    Args:
+        workspace_id: Workspace (group) ID
+    """
+    return json.dumps(_get(f"/powerbi/workspaces/{workspace_id}/datasets"), default=str)
+
+
+@mcp.tool()
+def powerbi_list_tables(workspace_id: str, dataset_id: str) -> str:
+    """List tables in a Power BI dataset.
+
+    For standard (non-push) datasets, uses DAX INFO.TABLES() to discover tables.
+
+    Args:
+        workspace_id: Workspace (group) ID
+        dataset_id: Dataset ID
+    """
+    return json.dumps(
+        _get(f"/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/tables"),
+        default=str,
+    )
+
+
+@mcp.tool()
+def powerbi_query(workspace_id: str, dataset_id: str, dax_query: str) -> str:
+    """Execute a DAX query against a Power BI dataset.
+
+    Requires Power BI Premium or Premium Per User capacity.
+    Returns columns and rows from the first result table.
+
+    Example DAX queries:
+        EVALUATE TOPN(10, 'Sales', 'Sales'[Amount], DESC)
+        EVALUATE SUMMARIZECOLUMNS('Product'[Category], "Total", SUM('Sales'[Amount]))
+        EVALUATE INFO.TABLES()
+
+    Args:
+        workspace_id: Workspace (group) ID
+        dataset_id: Dataset ID
+        dax_query: DAX query string (must start with EVALUATE, DEFINE, or a valid DAX statement)
+    """
+    return json.dumps(
+        _post(
+            f"/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/query",
+            {"dax_query": dax_query},
+        ),
+        default=str,
+    )
+
+
+@mcp.tool()
+def powerbi_list_reports(workspace_id: str) -> str:
+    """List reports in a Power BI workspace.
+
+    Args:
+        workspace_id: Workspace (group) ID
+    """
+    return json.dumps(_get(f"/powerbi/workspaces/{workspace_id}/reports"), default=str)
 
 
 # ===========================================================================
