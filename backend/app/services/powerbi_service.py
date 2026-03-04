@@ -1,0 +1,178 @@
+"""Power BI Service — read-only access to Power BI REST API.
+
+Uses a separate token audience (analysis.windows.net/powerbi/api) from
+MS Graph. Acquires Power BI tokens via the existing MSAL refresh token.
+"""
+
+import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
+import httpx
+from msal import ConfidentialClientApplication
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import get_settings
+from app.models import Auth
+from app.crypto import decrypt_token
+from app import audit
+
+logger = logging.getLogger(__name__)
+settings = get_settings()
+
+POWERBI_BASE_URL = "https://api.powerbi.com/v1.0/myorg"
+POWERBI_SCOPES = ["https://analysis.windows.net/powerbi/api/.default"]
+
+
+class PowerBIService:
+    """Read-only Power BI REST API client.
+
+    Acquires access tokens for the Power BI resource using the stored
+    MSAL refresh token, separate from the MS Graph token.
+    """
+
+    def __init__(self, db: AsyncSession, auth: Auth):
+        self.db = db
+        self.auth = auth
+        self._pbi_token: Optional[str] = None
+        self._pbi_token_expires: Optional[datetime] = None
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def _get_pbi_token(self) -> str:
+        """Acquire (or return cached) Power BI access token."""
+        now = datetime.utcnow()
+        if self._pbi_token and self._pbi_token_expires and now < self._pbi_token_expires:
+            return self._pbi_token
+
+        msal_app = ConfidentialClientApplication(
+            settings.azure_client_id,
+            authority=settings.authority,
+            client_credential=settings.azure_client_secret,
+        )
+
+        refresh_token = decrypt_token(self.auth.refresh_token)
+        result = msal_app.acquire_token_by_refresh_token(
+            refresh_token,
+            scopes=POWERBI_SCOPES,
+        )
+
+        if "access_token" not in result:
+            error_msg = result.get("error_description", result.get("error", "Unknown error"))
+            logger.error("Power BI token acquisition failed: %s", error_msg)
+            raise Exception(f"Power BI token acquisition failed: {error_msg}")
+
+        self._pbi_token = result["access_token"]
+        self._pbi_token_expires = now + timedelta(
+            seconds=result.get("expires_in", 3600) - 300  # 5-min buffer
+        )
+
+        logger.info("Acquired Power BI token (expires in %ss)", result.get("expires_in", "?"))
+        return self._pbi_token
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
+
+    async def _get(self, endpoint: str, params: Optional[dict] = None) -> dict:
+        token = await self._get_pbi_token()
+        client = await self._get_client()
+        url = f"{POWERBI_BASE_URL}{endpoint}"
+        response = await client.get(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            params=params,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def _post(self, endpoint: str, data: Optional[dict] = None) -> dict:
+        token = await self._get_pbi_token()
+        client = await self._get_client()
+        url = f"{POWERBI_BASE_URL}{endpoint}"
+        response = await client.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=data,
+            timeout=60.0,  # DAX queries can be slow
+        )
+        response.raise_for_status()
+        return response.json()
+
+    # ------------------------------------------------------------------
+    # Public API (read-only)
+    # ------------------------------------------------------------------
+
+    async def list_workspaces(self) -> list[dict]:
+        """List all Power BI workspaces (groups) the user has access to."""
+        result = await self._get("/groups")
+        return result.get("value", [])
+
+    async def list_datasets(self, workspace_id: str) -> list[dict]:
+        """List datasets in a workspace."""
+        result = await self._get(f"/groups/{workspace_id}/datasets")
+        return result.get("value", [])
+
+    async def list_tables(self, workspace_id: str, dataset_id: str) -> list[dict]:
+        """List tables in a dataset (push datasets only — standard datasets
+        use DAX INFO functions instead)."""
+        try:
+            result = await self._get(
+                f"/groups/{workspace_id}/datasets/{dataset_id}/tables"
+            )
+            return result.get("value", [])
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                # Standard datasets don't support /tables — use DAX instead
+                return await self._list_tables_via_dax(workspace_id, dataset_id)
+            raise
+
+    async def _list_tables_via_dax(
+        self, workspace_id: str, dataset_id: str
+    ) -> list[dict]:
+        """Discover tables via DAX INFO.TABLES() for standard datasets."""
+        dax = "EVALUATE INFO.TABLES()"
+        result = await self.execute_query(workspace_id, dataset_id, dax)
+        rows = result.get("rows", [])
+        return [{"name": r.get("[Name]", r.get("Name", "?")), "source": "dax"} for r in rows]
+
+    async def execute_query(
+        self, workspace_id: str, dataset_id: str, dax_query: str
+    ) -> dict:
+        """Execute a DAX query against a dataset.
+
+        Returns {"columns": [...], "rows": [...]} from the first result table.
+        Requires Power BI Premium or Premium Per User capacity.
+        """
+        payload = {
+            "queries": [{"query": dax_query}],
+            "serializerSettings": {"includeNulls": True},
+        }
+        result = await self._post(
+            f"/groups/{workspace_id}/datasets/{dataset_id}/executeQueries",
+            data=payload,
+        )
+
+        # Parse the response — results.tables[0].rows
+        tables = result.get("results", [{}])[0].get("tables", [])
+        if not tables:
+            return {"columns": [], "rows": []}
+
+        table = tables[0]
+        return {
+            "columns": table.get("columns", []),
+            "rows": table.get("rows", []),
+        }
+
+    async def list_reports(self, workspace_id: str) -> list[dict]:
+        """List reports in a workspace."""
+        result = await self._get(f"/groups/{workspace_id}/reports")
+        return result.get("value", [])
+
+    async def close(self):
+        if self._client:
+            await self._client.aclose()
+            self._client = None
