@@ -80,6 +80,19 @@ def _plain_to_html(text: str) -> str:
     return escaped.replace("\n", "<br>\n")
 
 
+def _put_binary(path: str, content: bytes, content_type: str = "application/octet-stream",
+                 params: dict | None = None) -> dict | str:
+    auth_headers = {"Authorization": f"Bearer {API_KEY}"}
+    with httpx.Client(base_url=BASE_URL, headers=auth_headers, timeout=60) as c:
+        r = c.put(
+            path,
+            params={k: v for k, v in (params or {}).items() if v is not None},
+            files={"file": ("upload", content, content_type)},
+        )
+        r.raise_for_status()
+        return r.json()
+
+
 def _delete(path: str) -> dict | str:
     with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=30) as c:
         r = c.delete(path)
@@ -290,8 +303,13 @@ def mail_update(
     flag: str | None = None,
     body: str | None = None,
     body_type: str = "HTML",
+    subject: str | None = None,
+    to_recipients: list | None = None,
+    cc_recipients: list | None = None,
 ) -> str:
-    """Update message properties (mark read/unread, flag, body content).
+    """Update message properties (mark read/unread, flag, body, subject, recipients).
+
+    subject, to_recipients, and cc_recipients only work on draft messages.
 
     Args:
         message_id: Message ID
@@ -299,6 +317,9 @@ def mail_update(
         flag: Flag status - 'flagged', 'complete', or 'notFlagged'
         body: New body content (HTML or plain text)
         body_type: 'HTML' or 'Text' (default 'HTML')
+        subject: New subject (drafts only)
+        to_recipients: New To recipients - email strings ("a@b.com"), RFC 5322 ("Name <a@b.com>"), or Graph API objects (drafts only)
+        cc_recipients: New CC recipients - same formats as to_recipients (drafts only)
     """
     data = {}
     if is_read is not None:
@@ -308,6 +329,12 @@ def mail_update(
     if body is not None:
         data["body"] = body
         data["body_type"] = body_type
+    if subject is not None:
+        data["subject"] = subject
+    if to_recipients is not None:
+        data["to_recipients"] = to_recipients
+    if cc_recipients is not None:
+        data["cc_recipients"] = cc_recipients
     return json.dumps(_patch(f"/mail/messages/{message_id}", data), default=str)
 
 
@@ -609,70 +636,178 @@ def files_download_file(
     })
 
 
+@mcp.tool()
+def files_upload_file(
+    local_path: str,
+    parent_id: str,
+    filename: str | None = None,
+    drive_id: str | None = None,
+) -> str:
+    """Upload a local file to OneDrive or SharePoint.
+
+    Args:
+        local_path: Absolute path to the local file to upload
+        parent_id: Parent folder item ID (get from sharepoint_list_children)
+        filename: Destination filename (defaults to the local filename)
+        drive_id: Drive ID (required for SharePoint drives)
+    """
+    import os
+    import mimetypes
+
+    if not os.path.isfile(local_path):
+        return json.dumps({"error": f"File not found: {local_path}"})
+
+    if not filename:
+        filename = os.path.basename(local_path)
+
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+    with open(local_path, "rb") as f:
+        file_bytes = f.read()
+
+    from urllib.parse import quote
+    safe_name = quote(filename, safe="")
+    auth_headers = {"Authorization": f"Bearer {API_KEY}"}
+    with httpx.Client(base_url=BASE_URL, headers=auth_headers, timeout=60) as c:
+        r = c.put(
+            f"/files/items/{parent_id}:/{safe_name}:/content",
+            params={k: v for k, v in {"drive_id": drive_id}.items() if v is not None},
+            files={"file": (filename, file_bytes, content_type)},
+        )
+        r.raise_for_status()
+        result = r.json()
+
+    return json.dumps({
+        "id": result.get("id"),
+        "name": result.get("name"),
+        "webUrl": result.get("webUrl"),
+        "size": result.get("size"),
+    })
+
+
+@mcp.tool()
+def files_replace_file(
+    item_id: str,
+    local_path: str,
+    drive_id: str | None = None,
+) -> str:
+    """Replace the content of an existing OneDrive/SharePoint file (keeps the same item ID).
+
+    OneDrive/SharePoint preserves version history, so the previous content is
+    still accessible via the file's version history.
+
+    Args:
+        item_id: Item ID of the existing file to replace
+        local_path: Absolute path to the local file with the new content
+        drive_id: Drive ID (required for SharePoint drives)
+    """
+    import os
+    import mimetypes
+
+    if not os.path.isfile(local_path):
+        return json.dumps({"error": f"File not found: {local_path}"})
+
+    content_type = mimetypes.guess_type(local_path)[0] or "application/octet-stream"
+
+    with open(local_path, "rb") as f:
+        file_bytes = f.read()
+
+    params = {}
+    if drive_id:
+        params["drive_id"] = drive_id
+
+    result = _put_binary(
+        f"/files/items/{item_id}/content",
+        content=file_bytes,
+        content_type=content_type,
+        params=params,
+    )
+
+    return json.dumps({
+        "id": result.get("id") if isinstance(result, dict) else None,
+        "name": result.get("name") if isinstance(result, dict) else None,
+        "webUrl": result.get("webUrl") if isinstance(result, dict) else None,
+        "size": result.get("size") if isinstance(result, dict) else None,
+    })
+
+
 # ===========================================================================
 # SharePoint Tools
 # ===========================================================================
 
 @mcp.tool()
-def sharepoint_list_drives() -> str:
-    """List all SharePoint drives (document libraries) the user has access to."""
-    return json.dumps(_get("/sharepoint/drives"), default=str)
+def sharepoint_resolve_site(host_path: str) -> str:
+    """Resolve a SharePoint site to get its site ID.
+
+    Args:
+        host_path: SharePoint hostname/path, e.g. 'revivalgourmet.sharepoint.com/sites/Finance'
+                   or 'revivalgourmet.sharepoint.com' for root site.
+    """
+    return json.dumps(_get(f"/sharepoint/sites/{host_path}"), default=str)
+
+
+@mcp.tool()
+def sharepoint_list_drives(site_id: str) -> str:
+    """List all SharePoint drives (document libraries) for a site.
+
+    Args:
+        site_id: SharePoint site ID. Get this from sharepoint_resolve_site
+                 (e.g. 'revivalgourmet.sharepoint.com/sites/Finance').
+    """
+    return json.dumps(_get("/sharepoint/drives", {"site_id": site_id}), default=str)
 
 
 @mcp.tool()
 def sharepoint_list_children(
     item_id: str,
-    drive_id: str | None = None,
+    site_id: str,
     top: int = 100,
 ) -> str:
     """List files and folders in a SharePoint document library folder.
 
     Args:
         item_id: Folder item ID (use 'root' for root)
-        drive_id: Drive ID (from sharepoint_list_drives). Required for non-default drives.
+        site_id: SharePoint site ID (from sharepoint_resolve_site)
         top: Max results (default 100)
     """
-    params = {"top": top}
-    if drive_id:
-        params["drive_id"] = drive_id
+    params = {"site_id": site_id, "top": top}
     return json.dumps(_get(f"/sharepoint/items/{item_id}/children", params), default=str)
 
 
 @mcp.tool()
 def sharepoint_search(
     q: str,
-    drive_id: str | None = None,
+    site_id: str,
     top: int = 25,
 ) -> str:
     """Search files in SharePoint.
 
     Args:
         q: Search query
-        drive_id: Drive ID to search in
+        site_id: SharePoint site ID (from sharepoint_resolve_site)
         top: Max results (default 25)
     """
-    params = {"q": q, "top": top}
-    if drive_id:
-        params["drive_id"] = drive_id
+    params = {"q": q, "site_id": site_id, "top": top}
     return json.dumps(_get("/sharepoint/search", params), default=str)
 
 
 @mcp.tool()
-def sharepoint_get_item(item_id: str) -> str:
+def sharepoint_get_item(item_id: str, site_id: str) -> str:
     """Get metadata for a SharePoint file or folder.
 
     Args:
         item_id: Item ID
+        site_id: SharePoint site ID (from sharepoint_resolve_site)
     """
-    return json.dumps(_get(f"/sharepoint/items/{item_id}"), default=str)
+    return json.dumps(_get(f"/sharepoint/items/{item_id}", {"site_id": site_id}), default=str)
 
 
 @mcp.tool()
 def sharepoint_resolve_url(url: str) -> str:
-    """Resolve a SharePoint sharing URL to drive_id and item_id.
+    """Resolve a SharePoint sharing URL to site_id and item_id.
 
     Handles sharing links like https://contoso.sharepoint.com/:p:/s/SiteName/EaBC123...
-    Returns item metadata including drive_id and item_id for use with other SharePoint tools.
+    Returns item metadata including site_id and item_id for use with other SharePoint tools.
 
     Args:
         url: SharePoint sharing URL or document URL
@@ -688,7 +823,7 @@ def sharepoint_download_from_url(
 ) -> str:
     """Download a SharePoint file directly from a sharing URL.
 
-    Resolves the sharing link to drive_id/item_id, then downloads the file to /tmp.
+    Resolves the sharing link to site_id/item_id, then downloads the file to /tmp.
 
     Args:
         url: SharePoint sharing URL
@@ -704,9 +839,9 @@ def sharepoint_download_from_url(
         return json.dumps({"error": f"Could not resolve URL: {resolved}"})
 
     item_id = resolved.get("item_id")
-    drive_id = resolved.get("drive_id")
-    if not item_id or not drive_id:
-        return json.dumps({"error": "Resolved but missing item_id or drive_id", "resolved": resolved})
+    site_id = resolved.get("site_id")
+    if not item_id or not site_id:
+        return json.dumps({"error": "Resolved but missing item_id or site_id", "resolved": resolved})
 
     # Step 2: Determine filename
     if not filename:
@@ -717,10 +852,9 @@ def sharepoint_download_from_url(
     if not safe_filename:
         safe_filename = "download"
 
-    # Step 3: Download
-    params = {"drive_id": drive_id}
+    # Step 3: Download via SharePoint endpoint (uses site-scoped drive path)
     with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=60) as c:
-        r = c.get(f"/files/items/{item_id}/content", params=params)
+        r = c.get(f"/sharepoint/items/{item_id}/content", params={"site_id": site_id})
         r.raise_for_status()
         data = r.content
 
@@ -731,7 +865,7 @@ def sharepoint_download_from_url(
     with open(dest_path, "wb") as f:
         f.write(data)
 
-    return json.dumps({"path": dest_path, "size": len(data), "filename": safe_filename, "item_id": item_id, "drive_id": drive_id})
+    return json.dumps({"path": dest_path, "size": len(data), "filename": safe_filename, "item_id": item_id, "site_id": site_id})
 
 
 # ===========================================================================

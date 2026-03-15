@@ -99,7 +99,36 @@ class PowerBIService:
             json=data,
             timeout=60.0,  # DAX queries can be slow
         )
-        response.raise_for_status()
+        if response.status_code >= 400:
+            # Try to extract a descriptive Power BI error message
+            try:
+                err_body = response.json()
+                err_detail = err_body.get("error", {})
+                err_code = err_detail.get("code", "")
+                err_msg = err_detail.get("message", "")
+                # Some errors nest detail further
+                pbi_detail = err_detail.get("pbi.error", {}).get("details", [])
+                detail_msgs = [d.get("detail", {}).get("value", "") for d in pbi_detail if d.get("detail")]
+                full_msg = err_msg or err_code
+                if detail_msgs:
+                    full_msg = f"{full_msg} — {'; '.join(detail_msgs)}"
+                if err_code == "DatasetExecuteQueriesError" and not err_msg:
+                    full_msg = (
+                        "DAX executeQueries failed. This usually means the workspace "
+                        "does not have Power BI Premium or Premium Per User capacity."
+                    )
+                if full_msg:
+                    logger.error("Power BI API %s %s: %s", response.status_code, endpoint, full_msg)
+                    raise httpx.HTTPStatusError(
+                        f"Power BI error ({response.status_code}): {full_msg}",
+                        request=response.request,
+                        response=response,
+                    )
+            except httpx.HTTPStatusError:
+                raise
+            except (ValueError, KeyError):
+                pass
+            response.raise_for_status()
         return response.json()
 
     # ------------------------------------------------------------------
@@ -125,19 +154,37 @@ class PowerBIService:
             )
             return result.get("value", [])
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 400:
-                # Standard datasets don't support /tables — use DAX instead
+            if e.response.status_code in (400, 404):
+                # Standard (non-push) datasets don't support /tables — use DAX instead
+                logger.info("Dataset %s is not a push dataset, falling back to DAX INFO.TABLES()", dataset_id)
                 return await self._list_tables_via_dax(workspace_id, dataset_id)
             raise
 
     async def _list_tables_via_dax(
         self, workspace_id: str, dataset_id: str
     ) -> list[dict]:
-        """Discover tables via DAX INFO.TABLES() for standard datasets."""
-        dax = "EVALUATE INFO.TABLES()"
-        result = await self.execute_query(workspace_id, dataset_id, dax)
-        rows = result.get("rows", [])
-        return [{"name": r.get("[Name]", r.get("Name", "?")), "source": "dax"} for r in rows]
+        """Discover tables via DAX INFO.TABLES() for standard datasets.
+
+        Falls back to returning a helpful error if DAX queries aren't
+        available (requires Premium or PPU capacity).
+        """
+        try:
+            dax = "EVALUATE INFO.TABLES()"
+            result = await self.execute_query(workspace_id, dataset_id, dax)
+            rows = result.get("rows", [])
+            return [{"name": r.get("[Name]", r.get("Name", "?")), "source": "dax"} for r in rows]
+        except Exception as e:
+            logger.warning("DAX INFO.TABLES() failed for dataset %s: %s", dataset_id, e)
+            return [{
+                "error": "Cannot list tables for this dataset",
+                "detail": (
+                    "This is a standard (non-push) dataset. The REST /tables endpoint "
+                    "only works for push datasets, and DAX queries require Power BI "
+                    "Premium or Premium Per User capacity. To enable table discovery, "
+                    "either: (1) assign the workspace to Premium/PPU capacity, or "
+                    "(2) use the Power BI web UI to inspect the dataset schema."
+                ),
+            }]
 
     async def execute_query(
         self, workspace_id: str, dataset_id: str, dax_query: str

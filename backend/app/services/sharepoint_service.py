@@ -1,6 +1,6 @@
 import logging
 from typing import Optional
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, quote
 
 from app.services.graph_client import GraphClient
 
@@ -10,6 +10,14 @@ logger = logging.getLogger(__name__)
 class SharePointService:
     def __init__(self, graph_client: GraphClient):
         self.client = graph_client
+
+    def _drive_path(self, site_id: str) -> str:
+        """Build the Graph API drive prefix using site context.
+
+        Uses /sites/{site_id}/drive which avoids b!-prefixed drive IDs
+        that cause 400 errors with httpx URL encoding.
+        """
+        return f"/sites/{site_id}/drive"
 
     async def resolve_site(self, host_and_path: str) -> dict:
         """Resolve a SharePoint site by hostname and path.
@@ -43,7 +51,7 @@ class SharePointService:
 
     async def list_children(
         self,
-        drive_id: str,
+        site_id: str,
         item_id: str = "root",
         top: int = 100,
         order_by: str = "name",
@@ -53,29 +61,33 @@ class SharePointService:
             "$top": top,
             "$orderby": order_by,
         }
+        drive = self._drive_path(site_id)
         return await self.client.get(
-            f"/drives/{drive_id}/items/{item_id}/children", params=params
+            f"{drive}/items/{item_id}/children", params=params
         )
 
     async def search(
         self,
-        drive_id: str,
+        site_id: str,
         query: str,
         top: int = 25,
     ) -> dict:
-        """Search within a SharePoint drive."""
+        """Search within a SharePoint site's default drive."""
+        safe_query = quote(query, safe='')
         params = {"$top": top}
+        drive = self._drive_path(site_id)
         return await self.client.get(
-            f"/drives/{drive_id}/root/search(q='{query}')", params=params
+            f"{drive}/root/search(q='{safe_query}')", params=params
         )
 
-    async def get_item(self, drive_id: str, item_id: str) -> dict:
+    async def get_item(self, site_id: str, item_id: str) -> dict:
         """Get item metadata."""
-        return await self.client.get(f"/drives/{drive_id}/items/{item_id}")
+        drive = self._drive_path(site_id)
+        return await self.client.get(f"{drive}/items/{item_id}")
 
     async def download_content(
         self,
-        drive_id: str,
+        site_id: str,
         item_id: str,
         format: Optional[str] = None,
     ) -> bytes:
@@ -84,10 +96,39 @@ class SharePointService:
         Args:
             format: Optional conversion format (e.g. "pdf").
         """
-        endpoint = f"/drives/{drive_id}/items/{item_id}/content"
+        drive = self._drive_path(site_id)
+        endpoint = f"{drive}/items/{item_id}/content"
         if format:
             endpoint += f"?format={format}"
         return await self.client.get_raw(endpoint)
+
+    async def upload_content(
+        self,
+        site_id: str,
+        parent_id: str,
+        filename: str,
+        content: bytes,
+        content_type: str = "application/octet-stream",
+    ) -> dict:
+        """Upload a file to a SharePoint site's default drive.
+
+        Uses /sites/{site_id}/drive path to avoid b!-prefixed drive IDs.
+        """
+        drive = self._drive_path(site_id)
+        endpoint = f"{drive}/items/{parent_id}:/{filename}:/content"
+        return await self.client.put(endpoint, content, content_type)
+
+    async def replace_content(
+        self,
+        site_id: str,
+        item_id: str,
+        content: bytes,
+        content_type: str = "application/octet-stream",
+    ) -> dict:
+        """Replace the content of an existing file in a SharePoint drive (keeps the same item ID)."""
+        drive = self._drive_path(site_id)
+        endpoint = f"{drive}/items/{item_id}/content"
+        return await self.client.put(endpoint, content, content_type)
 
     async def resolve_sharepoint_url(self, url: str) -> dict:
         """Parse a SharePoint sharing URL and resolve to item metadata.
@@ -96,7 +137,7 @@ class SharePointService:
           https://contoso.sharepoint.com/:w:/s/SiteName/EaBC123...
           https://contoso.sharepoint.com/sites/SiteName/Shared Documents/file.docx
 
-        Returns dict with site, drive_id, item_id, and item metadata.
+        Returns dict with site_id, item_id, and item metadata.
         """
         parsed = urlparse(url)
         hostname = parsed.hostname
@@ -115,7 +156,6 @@ class SharePointService:
             return {
                 "item": result,
                 "item_id": result.get("id"),
-                "drive_id": result.get("parentReference", {}).get("driveId"),
                 "site_id": result.get("parentReference", {}).get("siteId"),
             }
         except Exception as e:
@@ -150,39 +190,30 @@ class SharePointService:
         site = await self.resolve_site(f"{hostname}{site_path}")
         site_id = site["id"]
 
-        # Get drives and try to find the item by path
-        drives_result = await self.list_drives(site_id)
-        drives = drives_result.get("value", [])
-
-        # Try each drive to find the item
+        # Try to find the item by path using the site's default drive
         if doc_path:
-            # The drive's web URL typically ends with the library name
-            # (e.g. "/Shared Documents"). doc_path may redundantly include
-            # that prefix, so try both with and without stripping it.
+            # Strip the library name prefix if present (e.g. "/Shared Documents/...")
+            drives_result = await self.list_drives(site_id)
+            drives = drives_result.get("value", [])
             for drive in drives:
-                drive_id = drive["id"]
-                # Build candidate paths: original, and stripped of library name
-                paths_to_try = [doc_path]
                 drive_web_url = drive.get("webUrl", "")
                 if drive_web_url:
                     lib_suffix = urlparse(drive_web_url).path.split("/")[-1]
                     lib_prefix = f"/{unquote(lib_suffix)}"
                     if doc_path.startswith(lib_prefix):
-                        paths_to_try.insert(0, doc_path[len(lib_prefix):] or "/")
-                for p in paths_to_try:
-                    if not p or p == "/":
-                        continue
-                    try:
-                        item = await self.client.get(
-                            f"/drives/{drive_id}/root:{p}"
-                        )
-                        return {
-                            "item": item,
-                            "item_id": item.get("id"),
-                            "drive_id": drive_id,
-                            "site_id": site_id,
-                        }
-                    except Exception:
-                        continue
+                        doc_path = doc_path[len(lib_prefix):] or "/"
+                        break
+
+            if doc_path and doc_path != "/":
+                try:
+                    drive = self._drive_path(site_id)
+                    item = await self.client.get(f"{drive}/root:{doc_path}")
+                    return {
+                        "item": item,
+                        "item_id": item.get("id"),
+                        "site_id": site_id,
+                    }
+                except Exception:
+                    pass
 
         raise ValueError(f"Could not resolve URL to a specific item: {url}")

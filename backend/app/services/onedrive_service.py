@@ -63,6 +63,21 @@ class OneDriveService:
 
         return await self.client.put(endpoint, content, content_type)
 
+    async def replace_content(
+        self,
+        item_id: str,
+        content: bytes,
+        content_type: str = "application/octet-stream",
+        drive_id: Optional[str] = None,
+    ) -> dict:
+        """Replace the content of an existing file (keeps the same item ID)."""
+        if drive_id:
+            endpoint = f"/drives/{drive_id}/items/{item_id}/content"
+        else:
+            endpoint = f"/me/drive/items/{item_id}/content"
+
+        return await self.client.put(endpoint, content, content_type)
+
     async def delete_item(self, item_id: str, drive_id: Optional[str] = None) -> None:
         if drive_id:
             await self.client.delete(f"/drives/{drive_id}/items/{item_id}")

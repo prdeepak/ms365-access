@@ -2,7 +2,9 @@
 
 import logging
 
+import httpx
 from fastapi import APIRouter, Depends, Query, Body
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -64,8 +66,14 @@ async def list_tables(
     dataset_id: str,
     service: PowerBIService = Depends(get_powerbi_service),
 ):
-    """List tables in a dataset."""
-    return await service.list_tables(workspace_id, dataset_id)
+    """List tables in a dataset. Falls back to DAX INFO.TABLES() for standard datasets."""
+    try:
+        return await service.list_tables(workspace_id, dataset_id)
+    except httpx.HTTPStatusError as e:
+        return JSONResponse(
+            {"error": "Power BI API Error", "detail": str(e)},
+            status_code=e.response.status_code,
+        )
 
 
 # ------------------------------------------------------------------
@@ -88,7 +96,13 @@ async def execute_query(
     Requires Power BI Premium or Premium Per User capacity.
     Returns columns and rows from the first result table.
     """
-    return await service.execute_query(workspace_id, dataset_id, dax_query)
+    try:
+        return await service.execute_query(workspace_id, dataset_id, dax_query)
+    except httpx.HTTPStatusError as e:
+        return JSONResponse(
+            {"error": "DAX query failed", "detail": str(e)},
+            status_code=e.response.status_code,
+        )
 
 
 # ------------------------------------------------------------------

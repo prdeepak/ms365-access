@@ -91,6 +91,28 @@ class Ms365Client:
             log.warning(f"PUT {path} failed: {e}")
             return None
 
+    def _put_multipart(self, path, file_bytes, filename, content_type="application/octet-stream", params=None, timeout=60):
+        """PUT with multipart/form-data file upload."""
+        import uuid
+        url = f"{self.base_url}{path}"
+        if params:
+            url += ("&" if "?" in path else "?") + urlencode(params)
+        boundary = uuid.uuid4().hex
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+            f"Content-Type: {content_type}\r\n\r\n"
+        ).encode() + file_bytes + f"\r\n--{boundary}--\r\n".encode()
+        try:
+            req = Request(url, data=body, method="PUT")
+            req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+            self._auth_header(req)
+            with urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode())
+        except (URLError, HTTPError, json.JSONDecodeError) as e:
+            log.warning(f"PUT (multipart) {path} failed: {e}")
+            return None
+
     def _patch_json(self, path, data=None, params=None, timeout=30):
         url = f"{self.base_url}{path}"
         if params:
@@ -516,10 +538,20 @@ class Ms365Client:
         params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
         return self._post_json(f"/files/items/{parent_id}/folder", data, params)
 
-    def upload_content(self, parent_id, filename, data=None, drive_id=None):
-        """Upload Content"""
+    def upload_content(self, parent_id, filename, file_bytes, content_type="application/octet-stream", drive_id=None):
+        """Upload a file to OneDrive/SharePoint.
+
+        Args:
+            parent_id: Parent folder item ID.
+            filename: Destination filename.
+            file_bytes: File content as bytes.
+            content_type: MIME type (default application/octet-stream).
+            drive_id: Drive ID (required for SharePoint drives).
+        """
+        from urllib.parse import quote
         params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
-        return self._put_json(f"/files/items/{parent_id}:/{filename}:/content", data, params)
+        safe_name = quote(filename, safe="")
+        return self._put_multipart(f"/files/items/{parent_id}:/{safe_name}:/content", file_bytes, filename, content_type, params)
 
     def search_files(self, q, drive_id=None, top=25):
         """Search Files"""
@@ -534,29 +566,36 @@ class Ms365Client:
         params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
         return self._get_json(f"/sharepoint/drives", params)
 
-    def sharepoint_get_item(self, item_id, drive_id):
+    def sharepoint_get_item(self, item_id, site_id):
         """Get Item"""
-        params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
+        params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
         return self._get_json(f"/sharepoint/items/{item_id}", params)
 
-    def sharepoint_list_children(self, item_id, drive_id, top=100, order_by='name'):
+    def sharepoint_list_children(self, item_id, site_id, top=100, order_by='name'):
         """List Children"""
-        params = {k: v for k, v in {"drive_id": drive_id, "top": top, "order_by": order_by}.items() if v is not None}
+        params = {k: v for k, v in {"site_id": site_id, "top": top, "order_by": order_by}.items() if v is not None}
         return self._get_json(f"/sharepoint/items/{item_id}/children", params)
 
-    def sharepoint_download_content(self, item_id, drive_id, format=None):
+    def sharepoint_download_content(self, item_id, site_id, format=None):
         """Download Content"""
-        params = {k: v for k, v in {"drive_id": drive_id, "format": format}.items() if v is not None}
+        params = {k: v for k, v in {"site_id": site_id, "format": format}.items() if v is not None}
         return self._get_raw(f"/sharepoint/items/{item_id}/content", params)
+
+    def sharepoint_upload_content(self, parent_id, filename, file_bytes, site_id, content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"):
+        """Upload a file to a SharePoint site's default drive (uses site_id, not drive_id)."""
+        from urllib.parse import quote
+        params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
+        safe_name = quote(filename, safe="")
+        return self._put_multipart(f"/sharepoint/items/{parent_id}:/{safe_name}:/content", file_bytes, filename, content_type, params)
 
     def resolve_url(self, url):
         """Resolve Url"""
         params = {k: v for k, v in {"url": url}.items() if v is not None}
         return self._get_json(f"/sharepoint/resolve", params)
 
-    def search(self, q, drive_id, top=25):
+    def sharepoint_search(self, q, site_id, top=25):
         """Search"""
-        params = {k: v for k, v in {"q": q, "drive_id": drive_id, "top": top}.items() if v is not None}
+        params = {k: v for k, v in {"q": q, "site_id": site_id, "top": top}.items() if v is not None}
         return self._get_json(f"/sharepoint/search", params)
 
     def resolve_site(self, host_path):
