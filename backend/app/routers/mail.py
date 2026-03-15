@@ -234,6 +234,9 @@ async def update_message(
         categories=request.categories,
         body=request.body,
         body_type=request.body_type,
+        subject=request.subject,
+        to_recipients=request.to_recipients,
+        cc_recipients=request.cc_recipients,
     )
 
 

@@ -96,6 +96,9 @@ class UpdateMailRequest(BaseModel):
     categories: Optional[list[str]] = None
     body: Optional[str] = None  # Body content (HTML or text)
     body_type: Optional[str] = None  # "HTML" or "Text" (default: "HTML")
+    subject: Optional[str] = None  # Only works on draft messages
+    to_recipients: Optional[list] = None  # Only works on draft messages; accepts str or dict
+    cc_recipients: Optional[list] = None  # Only works on draft messages; accepts str or dict
 
 
 class MoveMailRequest(BaseModel):

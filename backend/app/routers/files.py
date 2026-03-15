@@ -92,6 +92,32 @@ async def upload_content(
     return result
 
 
+@router.put("/items/{item_id}/content", dependencies=[Depends(require_permission("write:files"))])
+async def replace_content(
+    item_id: str,
+    file: UploadFile = File(...),
+    drive_id: Optional[str] = None,
+    onedrive_service: OneDriveService = Depends(get_onedrive_service),
+    auth: Auth = Depends(get_current_auth),
+):
+    """Replace the content of an existing file (keeps the same item ID).
+
+    OneDrive/SharePoint preserves version history, so the previous content
+    is still accessible via the file's version history.
+    """
+    content = await file.read()
+    content_type = file.content_type or "application/octet-stream"
+
+    result = await onedrive_service.replace_content(
+        item_id=item_id,
+        content=content,
+        content_type=content_type,
+        drive_id=drive_id,
+    )
+    audit.log_file_upload(auth.email, f"replace:{item_id}", item_id)
+    return result
+
+
 @router.delete("/items/{item_id}", dependencies=[Depends(require_permission("write:files"))])
 async def delete_item(
     item_id: str,

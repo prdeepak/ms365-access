@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Optional
 from app.services.graph_client import GraphClient
 
@@ -8,6 +9,38 @@ logger = logging.getLogger(__name__)
 class MailService:
     def __init__(self, graph_client: GraphClient):
         self.client = graph_client
+
+    @staticmethod
+    def _parse_recipient(value) -> dict:
+        """Normalize a recipient to Graph API format.
+
+        Accepts:
+          - "a@b.com"
+          - "Name <a@b.com>"
+          - {"emailAddress": {"address": "a@b.com", "name": "Name"}}
+        Returns:
+          {"emailAddress": {"address": "...", "name": "..."}}
+        """
+        if isinstance(value, dict):
+            # Already Graph API format — pass through
+            ea = value.get("emailAddress", value)
+            addr = ea.get("address", "")
+            name = ea.get("name")
+            result = {"emailAddress": {"address": addr}}
+            if name:
+                result["emailAddress"]["name"] = name
+            return result
+
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid recipient: {value!r}")
+
+        # Try RFC 5322: "Display Name <email@example.com>"
+        m = re.match(r'^(.+?)\s*<([^>]+)>$', value.strip())
+        if m:
+            return {"emailAddress": {"name": m.group(1).strip(), "address": m.group(2).strip()}}
+
+        # Plain email address
+        return {"emailAddress": {"address": value.strip()}}
 
     async def list_folders(self) -> dict:
         return await self.client.get("/me/mailFolders")
@@ -87,29 +120,26 @@ class MailService:
         subject: str,
         body: str,
         body_type: str,
-        to_recipients: list[str],
-        cc_recipients: list[str] = [],
-        bcc_recipients: list[str] = [],
+        to_recipients: list,
+        cc_recipients: list = [],
+        bcc_recipients: list = [],
         importance: str = "normal",
         save_to_sent_items: bool = True,
     ) -> dict:
-        def format_recipients(emails: list[str]) -> list[dict]:
-            return [{"emailAddress": {"address": email}} for email in emails]
-
         message = {
             "subject": subject,
             "body": {
                 "contentType": body_type,
                 "content": body,
             },
-            "toRecipients": format_recipients(to_recipients),
+            "toRecipients": [self._parse_recipient(r) for r in to_recipients],
             "importance": importance,
         }
 
         if cc_recipients:
-            message["ccRecipients"] = format_recipients(cc_recipients)
+            message["ccRecipients"] = [self._parse_recipient(r) for r in cc_recipients]
         if bcc_recipients:
-            message["bccRecipients"] = format_recipients(bcc_recipients)
+            message["bccRecipients"] = [self._parse_recipient(r) for r in bcc_recipients]
 
         data = {
             "message": message,
@@ -131,11 +161,11 @@ class MailService:
         self,
         message_id: str,
         comment: str,
-        to_recipients: list[str],
+        to_recipients: list,
     ) -> dict:
         data = {
             "comment": comment,
-            "toRecipients": [{"emailAddress": {"address": email}} for email in to_recipients],
+            "toRecipients": [self._parse_recipient(r) for r in to_recipients],
         }
         return await self.client.post(f"/me/messages/{message_id}/forward", data)
 
@@ -147,6 +177,9 @@ class MailService:
         categories: Optional[list[str]] = None,
         body: Optional[str] = None,
         body_type: Optional[str] = None,
+        subject: Optional[str] = None,
+        to_recipients: Optional[list] = None,
+        cc_recipients: Optional[list] = None,
     ) -> dict:
         data = {}
         if is_read is not None:
@@ -160,6 +193,12 @@ class MailService:
                 "contentType": body_type or "HTML",
                 "content": body,
             }
+        if subject is not None:
+            data["subject"] = subject
+        if to_recipients is not None:
+            data["toRecipients"] = [self._parse_recipient(r) for r in to_recipients]
+        if cc_recipients is not None:
+            data["ccRecipients"] = [self._parse_recipient(r) for r in cc_recipients]
 
         return await self.client.patch(f"/me/messages/{message_id}", data)
 
@@ -221,29 +260,26 @@ class MailService:
         subject: str,
         body: str = "",
         body_type: str = "HTML",
-        to_recipients: list[str] | None = None,
-        cc_recipients: list[str] | None = None,
-        bcc_recipients: list[str] | None = None,
+        to_recipients: list | None = None,
+        cc_recipients: list | None = None,
+        bcc_recipients: list | None = None,
         importance: str = "normal",
     ) -> dict:
         """Create a new draft message in the Drafts folder (does not send it).
 
         Uses POST /me/messages, which saves to Drafts without sending.
         """
-        def _addr(addresses: list[str]) -> list[dict]:
-            return [{"emailAddress": {"address": a}} for a in addresses]
-
         payload: dict = {
             "subject": subject,
             "body": {"contentType": body_type, "content": body},
             "importance": importance,
         }
         if to_recipients:
-            payload["toRecipients"] = _addr(to_recipients)
+            payload["toRecipients"] = [self._parse_recipient(r) for r in to_recipients]
         if cc_recipients:
-            payload["ccRecipients"] = _addr(cc_recipients)
+            payload["ccRecipients"] = [self._parse_recipient(r) for r in cc_recipients]
         if bcc_recipients:
-            payload["bccRecipients"] = _addr(bcc_recipients)
+            payload["bccRecipients"] = [self._parse_recipient(r) for r in bcc_recipients]
 
         return await self.client.post("/me/messages", payload)
 
