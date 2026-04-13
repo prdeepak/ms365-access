@@ -1,4 +1,4 @@
-"""Power BI router — read-only endpoints for workspaces, datasets, and DAX queries."""
+"""Power BI router — endpoints for workspaces, datasets, DAX queries, and refresh management."""
 
 import logging
 
@@ -120,3 +120,53 @@ async def list_reports(
 ):
     """List reports in a workspace."""
     return await service.list_reports(workspace_id)
+
+
+# ------------------------------------------------------------------
+# Dataset Refresh
+# ------------------------------------------------------------------
+
+
+@router.post(
+    "/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes",
+    dependencies=[Depends(require_permission("write:powerbi"))],
+)
+async def trigger_refresh(
+    workspace_id: str,
+    dataset_id: str,
+    service: PowerBIService = Depends(get_powerbi_service),
+):
+    """Trigger a dataset refresh. Returns immediately — poll GET .../refreshes for status.
+
+    Power BI Pro: 8 refreshes/day max. Premium: 48/day.
+    """
+    try:
+        return await service.trigger_refresh(workspace_id, dataset_id)
+    except httpx.HTTPStatusError as e:
+        return JSONResponse(
+            {"error": "Refresh trigger failed", "detail": str(e)},
+            status_code=e.response.status_code,
+        )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes",
+    dependencies=[Depends(require_permission("read:powerbi"))],
+)
+async def list_refreshes(
+    workspace_id: str,
+    dataset_id: str,
+    top: int = Query(10, ge=1, le=100, description="Number of recent refreshes to return"),
+    service: PowerBIService = Depends(get_powerbi_service),
+):
+    """List recent dataset refresh history (status, start/end time, type).
+
+    Use after triggering a refresh to check if it completed or failed.
+    """
+    try:
+        return await service.list_refreshes(workspace_id, dataset_id, top)
+    except httpx.HTTPStatusError as e:
+        return JSONResponse(
+            {"error": "Failed to list refreshes", "detail": str(e)},
+            status_code=e.response.status_code,
+        )

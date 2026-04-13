@@ -114,6 +114,12 @@ class BatchDeleteRequest(BaseModel):
     message_ids: list[str]
 
 
+class AddAttachmentRequest(BaseModel):
+    name: str  # Filename
+    content_bytes: str  # Base64-encoded file content
+    content_type: str = "application/octet-stream"  # MIME type
+
+
 # Calendar schemas
 class Calendar(BaseModel):
     id: str

@@ -8,6 +8,7 @@ from app.dependencies import get_graph_client, get_current_auth, require_permiss
 from app.services.graph_client import GraphClient
 from app.services.mail_service import MailService
 from app.schemas import (
+    AddAttachmentRequest,
     CreateDraftRequest,
     DraftReplyRequest,
     SendMailRequest,
@@ -397,3 +398,24 @@ async def download_attachment(
     """Download attachment content."""
     content = await mail_service.get_attachment(message_id, attachment_id)
     return Response(content=content, media_type="application/octet-stream")
+
+
+@router.post("/messages/{message_id}/attachments", dependencies=[Depends(require_permission("write:draft"))], status_code=201)
+async def add_attachment(
+    message_id: str,
+    request: AddAttachmentRequest,
+    mail_service: MailService = Depends(get_mail_service),
+):
+    """Add a file attachment to a message or draft.
+
+    Accepts base64-encoded file content. Maximum size ~3MB
+    (MS Graph limit for single-request attachments).
+
+    Requires write:draft permission.
+    """
+    return await mail_service.add_attachment(
+        message_id=message_id,
+        name=request.name,
+        content_bytes=request.content_bytes,
+        content_type=request.content_type,
+    )

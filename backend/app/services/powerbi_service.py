@@ -21,11 +21,15 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 POWERBI_BASE_URL = "https://api.powerbi.com/v1.0/myorg"
-POWERBI_SCOPES = ["https://analysis.windows.net/powerbi/api/.default"]
+POWERBI_SCOPES = [
+    "https://analysis.windows.net/powerbi/api/Dataset.ReadWrite.All",
+    "https://analysis.windows.net/powerbi/api/Workspace.Read.All",
+    "https://analysis.windows.net/powerbi/api/Report.ReadWrite.All",
+]
 
 
 class PowerBIService:
-    """Read-only Power BI REST API client.
+    """Power BI REST API client.
 
     Acquires access tokens for the Power BI resource using the stored
     MSAL refresh token, separate from the MS Graph token.
@@ -129,10 +133,13 @@ class PowerBIService:
             except (ValueError, KeyError):
                 pass
             response.raise_for_status()
+        # 202 Accepted (e.g. refresh trigger) returns empty body
+        if response.status_code == 202 or not response.content:
+            return {}
         return response.json()
 
     # ------------------------------------------------------------------
-    # Public API (read-only)
+    # Public API
     # ------------------------------------------------------------------
 
     async def list_workspaces(self) -> list[dict]:
@@ -217,6 +224,32 @@ class PowerBIService:
     async def list_reports(self, workspace_id: str) -> list[dict]:
         """List reports in a workspace."""
         result = await self._get(f"/groups/{workspace_id}/reports")
+        return result.get("value", [])
+
+    async def trigger_refresh(self, workspace_id: str, dataset_id: str) -> dict:
+        """Trigger a dataset refresh.
+
+        Returns immediately with {"status": "triggered"} on success (202).
+        Power BI Pro: 8 refreshes/day max. Premium: 48/day.
+        """
+        await self._post(
+            f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes",
+            data={},
+        )
+        return {"status": "triggered"}
+
+    async def list_refreshes(
+        self, workspace_id: str, dataset_id: str, top: int = 10
+    ) -> list[dict]:
+        """List recent dataset refresh history.
+
+        Returns refresh entries with: requestId, id, refreshType,
+        startTime, endTime, status, serviceExceptionJson.
+        """
+        result = await self._get(
+            f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes",
+            params={"$top": top},
+        )
         return result.get("value", [])
 
     async def close(self):

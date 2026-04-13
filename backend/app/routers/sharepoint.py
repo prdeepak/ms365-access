@@ -138,6 +138,48 @@ async def get_item(
     return await sharepoint_service.get_item(site_id=site_id, item_id=item_id)
 
 
+@router.patch("/items/{item_id}")
+async def rename_item(
+    item_id: str,
+    site_id: str,
+    body: dict,
+    sharepoint_service: SharePointService = Depends(get_sharepoint_service),
+    auth: Auth = Depends(get_current_auth),
+):
+    """Rename a file or folder in a SharePoint drive."""
+    new_name = body.get("name")
+    if not new_name:
+        raise HTTPException(status_code=400, detail="'name' is required")
+    result = await sharepoint_service.rename_item(
+        site_id=site_id, item_id=item_id, new_name=new_name,
+    )
+    audit.log_file_upload(auth.email, f"rename:{item_id}", new_name)
+    return result
+
+
+@router.patch("/items/{item_id}/move")
+async def move_item(
+    item_id: str,
+    site_id: str,
+    body: dict,
+    sharepoint_service: SharePointService = Depends(get_sharepoint_service),
+    auth: Auth = Depends(get_current_auth),
+):
+    """Move a file or folder to a different folder in a SharePoint drive."""
+    destination_folder_id = body.get("destination_folder_id")
+    if not destination_folder_id:
+        raise HTTPException(
+            status_code=400, detail="'destination_folder_id' is required"
+        )
+    result = await sharepoint_service.move_item(
+        site_id=site_id,
+        item_id=item_id,
+        destination_folder_id=destination_folder_id,
+    )
+    audit.log_file_upload(auth.email, f"move:{item_id}", destination_folder_id)
+    return result
+
+
 @router.get("/search")
 async def search(
     q: str,

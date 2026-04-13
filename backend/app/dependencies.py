@@ -27,6 +27,7 @@ VALID_PERMISSIONS = {
     "write:contacts",
     "write:files",
     "read:powerbi",
+    "write:powerbi",
     "admin",
 }
 
@@ -42,6 +43,7 @@ TIER_PERMISSIONS: dict[str, list[str]] = {
         "read:contacts",
         "write:contacts",
         "read:powerbi",
+        "write:powerbi",
     ],
 }
 

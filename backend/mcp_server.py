@@ -59,9 +59,9 @@ def _post(path: str, data: dict | None = None) -> dict | list | str:
         return r.json()
 
 
-def _patch(path: str, data: dict | None = None) -> dict | list | str:
+def _patch(path: str, data: dict | None = None, params: dict | None = None) -> dict | list | str:
     with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=30) as c:
-        r = c.patch(path, json=data)
+        r = c.patch(path, json=data, params={k: v for k, v in (params or {}).items() if v is not None})
         r.raise_for_status()
         return r.json()
 
@@ -363,6 +363,55 @@ def mail_get_attachments(message_id: str) -> str:
         message_id: Message ID
     """
     return json.dumps(_get(f"/mail/messages/{message_id}/attachments"), default=str)
+
+
+@mcp.tool()
+def mail_add_attachment(
+    message_id: str,
+    file_path: str,
+    filename: str | None = None,
+    content_type: str | None = None,
+) -> str:
+    """Add a file attachment to an email draft or message.
+
+    Reads a local file, base64-encodes it, and attaches it to the message.
+    Maximum file size ~3MB (MS Graph single-request attachment limit).
+
+    Args:
+        message_id: ID of the message or draft to attach to
+        file_path: Absolute path to the local file to attach
+        filename: Filename for the attachment (defaults to the local filename)
+        content_type: MIME type (auto-detected from filename if not provided)
+    """
+    import base64
+    import mimetypes
+
+    if not os.path.isfile(file_path):
+        return json.dumps({"error": f"File not found: {file_path}"})
+
+    file_size = os.path.getsize(file_path)
+    if file_size > 3 * 1024 * 1024:
+        return json.dumps({
+            "error": f"File too large: {file_size} bytes. Maximum is 3MB for single-request attachments.",
+            "size": file_size,
+        })
+
+    if not filename:
+        filename = os.path.basename(file_path)
+
+    if not content_type:
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+    with open(file_path, "rb") as f:
+        content_bytes = base64.b64encode(f.read()).decode("ascii")
+
+    data = {
+        "name": filename,
+        "content_bytes": content_bytes,
+        "content_type": content_type,
+    }
+    result = _post(f"/mail/messages/{message_id}/attachments", data)
+    return json.dumps(result, default=str)
 
 
 # ===========================================================================
@@ -803,6 +852,57 @@ def sharepoint_get_item(item_id: str, site_id: str) -> str:
 
 
 @mcp.tool()
+def sharepoint_rename_item(
+    item_id: str,
+    site_id: str,
+    new_name: str,
+) -> str:
+    """Rename a file or folder in SharePoint.
+
+    Args:
+        item_id: Item ID (from sharepoint_list_children or sharepoint_search)
+        site_id: SharePoint site ID (from sharepoint_resolve_site)
+        new_name: New name for the file or folder (include extension)
+    """
+    result = _patch(
+        f"/sharepoint/items/{item_id}",
+        data={"name": new_name},
+        params={"site_id": site_id},
+    )
+    return json.dumps({
+        "id": result.get("id") if isinstance(result, dict) else None,
+        "name": result.get("name") if isinstance(result, dict) else None,
+        "webUrl": result.get("webUrl") if isinstance(result, dict) else None,
+    }, default=str)
+
+
+@mcp.tool()
+def sharepoint_move_item(
+    item_id: str,
+    site_id: str,
+    destination_folder_id: str,
+) -> str:
+    """Move a file or folder to a different folder in SharePoint.
+
+    Args:
+        item_id: Item ID of the file/folder to move (from sharepoint_list_children or sharepoint_search)
+        site_id: SharePoint site ID (from sharepoint_resolve_site)
+        destination_folder_id: Item ID of the destination folder
+    """
+    result = _patch(
+        f"/sharepoint/items/{item_id}/move",
+        data={"destination_folder_id": destination_folder_id},
+        params={"site_id": site_id},
+    )
+    return json.dumps({
+        "id": result.get("id") if isinstance(result, dict) else None,
+        "name": result.get("name") if isinstance(result, dict) else None,
+        "webUrl": result.get("webUrl") if isinstance(result, dict) else None,
+        "parentReference": result.get("parentReference") if isinstance(result, dict) else None,
+    }, default=str)
+
+
+@mcp.tool()
 def sharepoint_resolve_url(url: str) -> str:
     """Resolve a SharePoint sharing URL to site_id and item_id.
 
@@ -1064,6 +1164,47 @@ def powerbi_list_reports(workspace_id: str) -> str:
         workspace_id: Workspace (group) ID
     """
     return json.dumps(_get(f"/powerbi/workspaces/{workspace_id}/reports"), default=str)
+
+
+@mcp.tool()
+def powerbi_refresh_dataset(workspace_id: str, dataset_id: str) -> str:
+    """Trigger a Power BI dataset refresh. Returns immediately — poll powerbi_list_refreshes for status.
+
+    Recommended polling interval: 30-60 seconds.
+    Power BI Pro: 8 refreshes/day max. Premium: 48/day.
+
+    Args:
+        workspace_id: Workspace (group) ID
+        dataset_id: Dataset ID
+    """
+    return json.dumps(
+        _post(
+            f"/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes",
+            {},
+        ),
+        default=str,
+    )
+
+
+@mcp.tool()
+def powerbi_list_refreshes(workspace_id: str, dataset_id: str, top: int = 10) -> str:
+    """List recent Power BI dataset refresh history (status, start/end time, type).
+
+    Use after powerbi_refresh_dataset to check if a refresh completed or failed.
+    Status values: Unknown, Completed, Failed, Cancelled, Disabled.
+
+    Args:
+        workspace_id: Workspace (group) ID
+        dataset_id: Dataset ID
+        top: Number of recent refreshes to return (default 10, max 100)
+    """
+    return json.dumps(
+        _get(
+            f"/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes",
+            {"top": top},
+        ),
+        default=str,
+    )
 
 
 # ===========================================================================
