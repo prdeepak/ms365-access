@@ -41,6 +41,9 @@ class Settings(BaseSettings):
         "Calendars.ReadWrite",
         "Contacts.ReadWrite",
         "Files.ReadWrite.All",
+        "https://analysis.windows.net/powerbi/api/Dataset.ReadWrite.All",
+        "https://analysis.windows.net/powerbi/api/Workspace.Read.All",
+        "https://analysis.windows.net/powerbi/api/Report.ReadWrite.All",
         "offline_access",
     ]
 

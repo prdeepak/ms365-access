@@ -85,6 +85,21 @@ class SharePointService:
         drive = self._drive_path(site_id)
         return await self.client.get(f"{drive}/items/{item_id}")
 
+    async def rename_item(self, site_id: str, item_id: str, new_name: str) -> dict:
+        """Rename a file or folder in a SharePoint drive."""
+        drive = self._drive_path(site_id)
+        return await self.client.patch(f"{drive}/items/{item_id}", {"name": new_name})
+
+    async def move_item(
+        self, site_id: str, item_id: str, destination_folder_id: str
+    ) -> dict:
+        """Move a file or folder to a different folder in a SharePoint drive."""
+        drive = self._drive_path(site_id)
+        return await self.client.patch(
+            f"{drive}/items/{item_id}",
+            {"parentReference": {"id": destination_folder_id}},
+        )
+
     async def download_content(
         self,
         site_id: str,

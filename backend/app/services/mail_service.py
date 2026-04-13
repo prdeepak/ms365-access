@@ -386,3 +386,31 @@ class MailService:
         return await self.client.get_raw(
             f"/me/messages/{message_id}/attachments/{attachment_id}/$value"
         )
+
+    async def add_attachment(
+        self,
+        message_id: str,
+        name: str,
+        content_bytes: str,
+        content_type: str = "application/octet-stream",
+    ) -> dict:
+        """Add a file attachment to a message or draft.
+
+        Args:
+            message_id: The ID of the message/draft to attach to.
+            name: Filename for the attachment.
+            content_bytes: Base64-encoded file content.
+            content_type: MIME type of the attachment.
+
+        Returns:
+            The created attachment object from MS Graph.
+        """
+        data = {
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            "name": name,
+            "contentBytes": content_bytes,
+            "contentType": content_type,
+        }
+        return await self.client.post(
+            f"/me/messages/{message_id}/attachments", data
+        )

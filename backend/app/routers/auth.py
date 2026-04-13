@@ -32,13 +32,17 @@ def get_msal_app() -> ConfidentialClientApplication:
 
 
 @router.get("/login")
-async def login():
+async def login(force_consent: bool = False):
     msal_app = get_msal_app()
 
-    auth_url = msal_app.get_authorization_request_url(
+    kwargs = dict(
         scopes=get_user_scopes(),
         redirect_uri=settings.azure_redirect_uri,
     )
+    if force_consent:
+        kwargs["prompt"] = "consent"
+
+    auth_url = msal_app.get_authorization_request_url(**kwargs)
 
     return RedirectResponse(url=auth_url)
 
