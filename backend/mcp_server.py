@@ -20,6 +20,7 @@ import os
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +29,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _host = os.environ.get("MCP_HOST", "127.0.0.1")
-mcp = FastMCP("ms365-access", host=_host, port=8366)
+# Listen port = 8367 per the LaunchDaemon plist's --port arg. The hardcoded
+# port below is only used for FastMCP's internal URL generation; uvicorn
+# binds to args.port set below in main.
+_PORT = 8367
+_FQDN = "ft-deepak-m3-toronto.tailb4ec0f.ts.net"
+mcp = FastMCP(
+    "ms365-access",
+    host=_host,
+    port=_PORT,
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[
+            "127.0.0.1:*", "localhost:*", "[::1]:*",
+            f"{_FQDN}:{_PORT}",
+        ],
+        allowed_origins=[
+            "http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*",
+            f"https://{_FQDN}:{_PORT}",
+        ],
+    ),
+)
 
 BASE_URL = os.environ.get("MS365_API_URL", "http://localhost:8365")
 API_KEY = os.environ.get("MS365_API_KEY", "")
