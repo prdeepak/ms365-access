@@ -45,8 +45,11 @@ def get_calendar_service(graph_client: GraphClient = Depends(get_graph_client)) 
 
 
 @router.get("/calendars", dependencies=[Depends(require_permission("read:calendar"))])
-async def list_calendars(calendar_service: CalendarService = Depends(get_calendar_service)):
-    result = await calendar_service.list_calendars()
+async def list_calendars(
+    user: Optional[str] = Query(None, description="UPN of another user whose calendar you have Full Access to."),
+    calendar_service: CalendarService = Depends(get_calendar_service),
+):
+    result = await calendar_service.list_calendars(user=user)
     return result.get("value", [])
 
 
@@ -57,6 +60,7 @@ async def list_events(
     skip: int = Query(0, ge=0),
     order_by: str = "start/dateTime",
     filter: Optional[str] = None,
+    user: Optional[str] = Query(None, description="UPN of another user whose calendar you have Full Access to."),
     calendar_service: CalendarService = Depends(get_calendar_service),
 ):
     settings = get_settings()
@@ -66,6 +70,7 @@ async def list_events(
         skip=skip,
         order_by=order_by,
         filter_query=filter,
+        user=user,
     )
     items = [convert_event_to_local_tz(e, settings.local_timezone) for e in result.get("value", [])]
     return items
@@ -77,6 +82,7 @@ async def get_calendar_view(
     end_datetime: datetime,
     calendar_id: Optional[str] = None,
     top: int = Query(100, ge=1, le=500),
+    user: Optional[str] = Query(None, description="UPN of another user whose calendar you have Full Access to."),
     calendar_service: CalendarService = Depends(get_calendar_service),
 ):
     settings = get_settings()
@@ -85,6 +91,7 @@ async def get_calendar_view(
         end_datetime=end_datetime,
         calendar_id=calendar_id,
         top=top,
+        user=user,
     )
     items = [convert_event_to_local_tz(e, settings.local_timezone) for e in result.get("value", [])]
     return items
@@ -93,10 +100,11 @@ async def get_calendar_view(
 @router.get("/events/{event_id}", dependencies=[Depends(require_permission("read:calendar"))])
 async def get_event(
     event_id: str,
+    user: Optional[str] = Query(None, description="UPN of another user whose calendar you have Full Access to."),
     calendar_service: CalendarService = Depends(get_calendar_service),
 ):
     settings = get_settings()
-    event = await calendar_service.get_event(event_id)
+    event = await calendar_service.get_event(event_id, user=user)
     return convert_event_to_local_tz(event, settings.local_timezone)
 
 

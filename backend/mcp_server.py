@@ -73,9 +73,9 @@ def _get(path: str, params: dict | None = None) -> dict | list | str:
         return r.json()
 
 
-def _post(path: str, data: dict | None = None) -> dict | list | str:
+def _post(path: str, data: dict | None = None, params: dict | None = None) -> dict | list | str:
     with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=30) as c:
-        r = c.post(path, json=data)
+        r = c.post(path, json=data, params={k: v for k, v in (params or {}).items() if v is not None})
         r.raise_for_status()
         return r.json()
 
@@ -144,6 +144,7 @@ def mail_list_messages(
     search: str | None = None,
     filter: str | None = None,
     include_body: bool = False,
+    user: str | None = None,
 ) -> str:
     """List email messages, optionally filtered by folder or search.
 
@@ -153,10 +154,13 @@ def mail_list_messages(
         search: Free-text search query
         filter: OData filter expression (e.g. "isRead eq false")
         include_body: Include truncated plain-text body (~2000 chars) alongside metadata (default False)
+        user: UPN (e.g. "caroline@revivalgourmet.com") of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
     params = {"top": top, "search": search, "filter": filter, "include_body": include_body}
     if folder:
         params["folder_id"] = folder
+    if user:
+        params["user"] = user
     return json.dumps(_get("/mail/messages", params), default=str)
 
 
@@ -164,40 +168,51 @@ def mail_list_messages(
 def mail_search(
     q: str,
     top: int = 25,
+    user: str | None = None,
 ) -> str:
     """Search email messages by keyword.
 
     Args:
         q: Search query (searches subject, body, sender)
         top: Max results (default 25)
+        user: UPN (e.g. "caroline@revivalgourmet.com") of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
-    return json.dumps(_get("/mail/search", {"q": q, "top": top}), default=str)
+    params = {"q": q, "top": top}
+    if user:
+        params["user"] = user
+    return json.dumps(_get("/mail/search", params), default=str)
 
 
 @mcp.tool()
-def mail_get_message(message_id: str) -> str:
+def mail_get_message(message_id: str, user: str | None = None) -> str:
     """Get a single email message by ID with full body.
 
     Args:
         message_id: Message ID
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
-    return json.dumps(_get(f"/mail/messages/{message_id}"), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(_get(f"/mail/messages/{message_id}", params), default=str)
 
 
 @mcp.tool()
 def mail_get_threads(
     folder: str | None = None,
     top: int = 25,
+    user: str | None = None,
 ) -> str:
     """List email threads (conversations) grouped by conversationId.
 
     Args:
         folder: Folder ID or well-known name. Default: all.
         top: Max threads (default 25)
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
     params = {"top": top}
     if folder:
         params["folder_id"] = folder
+    if user:
+        params["user"] = user
     return json.dumps(_get("/mail/threads", params), default=str)
 
 
@@ -208,6 +223,7 @@ def mail_create_draft(
     to_recipients: list[str] | None = None,
     cc_recipients: list[str] | None = None,
     body_type: str = "HTML",
+    user: str | None = None,
 ) -> str:
     """Create a new draft email in the Drafts folder (does not send it).
 
@@ -223,6 +239,7 @@ def mail_create_draft(
         to_recipients: List of recipient email addresses (optional)
         cc_recipients: CC recipients (optional)
         body_type: 'HTML' or 'Text' (default 'HTML')
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
     # Auto-convert plain text newlines to HTML so Outlook preserves formatting
     if body_type.upper() == "HTML" and body:
@@ -232,7 +249,8 @@ def mail_create_draft(
         data["to_recipients"] = to_recipients
     if cc_recipients:
         data["cc_recipients"] = cc_recipients
-    return json.dumps(_post("/mail/drafts", data), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(_post("/mail/drafts", data, params=params), default=str)
 
 
 @mcp.tool()
@@ -240,6 +258,7 @@ def mail_create_reply_draft(
     message_id: str,
     comment: str = "",
     reply_all: bool = False,
+    user: str | None = None,
 ) -> str:
     """Create a draft reply to a message (does not send it).
 
@@ -251,14 +270,24 @@ def mail_create_reply_draft(
         message_id: ID of the message to reply to
         comment: Reply text to prepend to the quoted thread (default empty). Newlines preserved.
         reply_all: Create reply-all draft instead of reply (default False)
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
     # Auto-convert plain text newlines to HTML so Outlook preserves formatting
     if comment:
         comment = _plain_to_html(comment)
-    url = f"/mail/messages/{message_id}/draftReply"
+    params = {}
     if reply_all:
-        url += "?reply_all=true"
-    return json.dumps(_post(url, {"comment": comment} if comment else None), default=str)
+        params["reply_all"] = "true"
+    if user:
+        params["user"] = user
+    return json.dumps(
+        _post(
+            f"/mail/messages/{message_id}/draftReply",
+            {"comment": comment} if comment else None,
+            params=params or None,
+        ),
+        default=str,
+    )
 
 
 @mcp.tool()
@@ -268,6 +297,7 @@ def mail_send(
     to_recipients: list[str],
     cc_recipients: list[str] | None = None,
     body_type: str = "HTML",
+    user: str | None = None,
 ) -> str:
     """Send an email message.
 
@@ -277,6 +307,7 @@ def mail_send(
         to_recipients: List of recipient email addresses
         cc_recipients: CC recipients (optional)
         body_type: 'HTML' or 'Text' (default 'HTML')
+        user: UPN of a shared mailbox you have Send-As/Send-on-Behalf rights to. Default: your own mailbox.
     """
     data = {
         "subject": subject,
@@ -286,35 +317,52 @@ def mail_send(
     }
     if cc_recipients:
         data["cc_recipients"] = cc_recipients
-    return json.dumps(_post("/mail/messages", data), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(_post("/mail/messages", data, params=params), default=str)
 
 
 @mcp.tool()
 def mail_reply(
     message_id: str,
     comment: str,
+    user: str | None = None,
 ) -> str:
     """Reply to an email message.
 
     Args:
         message_id: ID of the message to reply to
         comment: Reply body text
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
-    return json.dumps(_post(f"/mail/messages/{message_id}/reply", {"comment": comment}), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(
+        _post(f"/mail/messages/{message_id}/reply", {"comment": comment}, params=params),
+        default=str,
+    )
 
 
 @mcp.tool()
 def mail_move(
     message_id: str,
     destination_folder: str,
+    user: str | None = None,
 ) -> str:
     """Move a message to a different folder.
 
     Args:
         message_id: Message ID
         destination_folder: Destination folder ID or well-known name (archive, junkemail, deleteditems)
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
-    return json.dumps(_post(f"/mail/messages/{message_id}/move", {"destination_id": destination_folder}), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(
+        _post(
+            f"/mail/messages/{message_id}/move",
+            {"destination_folder_id": destination_folder},
+            params=params,
+        ),
+        default=str,
+    )
 
 
 @mcp.tool()
@@ -327,6 +375,7 @@ def mail_update(
     subject: str | None = None,
     to_recipients: list | None = None,
     cc_recipients: list | None = None,
+    user: str | None = None,
 ) -> str:
     """Update message properties (mark read/unread, flag, body, subject, recipients).
 
@@ -341,6 +390,7 @@ def mail_update(
         subject: New subject (drafts only)
         to_recipients: New To recipients - email strings ("a@b.com"), RFC 5322 ("Name <a@b.com>"), or Graph API objects (drafts only)
         cc_recipients: New CC recipients - same formats as to_recipients (drafts only)
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
     data = {}
     if is_read is not None:
@@ -356,34 +406,44 @@ def mail_update(
         data["to_recipients"] = to_recipients
     if cc_recipients is not None:
         data["cc_recipients"] = cc_recipients
-    return json.dumps(_patch(f"/mail/messages/{message_id}", data), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(_patch(f"/mail/messages/{message_id}", data, params=params), default=str)
 
 
 @mcp.tool()
 def mail_batch_move(
     message_ids: list[str],
     destination_folder: str,
+    user: str | None = None,
 ) -> str:
     """Move multiple messages to a folder in one operation.
 
     Args:
         message_ids: List of message IDs to move
         destination_folder: Destination folder ID or well-known name
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
-    return json.dumps(_post("/mail/batch/move", {
-        "message_ids": message_ids,
-        "destination_id": destination_folder,
-    }), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(
+        _post(
+            "/mail/batch/move",
+            {"message_ids": message_ids, "destination_folder_id": destination_folder},
+            params=params,
+        ),
+        default=str,
+    )
 
 
 @mcp.tool()
-def mail_get_attachments(message_id: str) -> str:
+def mail_get_attachments(message_id: str, user: str | None = None) -> str:
     """List attachments for a message.
 
     Args:
         message_id: Message ID
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
-    return json.dumps(_get(f"/mail/messages/{message_id}/attachments"), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(_get(f"/mail/messages/{message_id}/attachments", params), default=str)
 
 
 @mcp.tool()
@@ -392,6 +452,7 @@ def mail_add_attachment(
     file_path: str,
     filename: str | None = None,
     content_type: str | None = None,
+    user: str | None = None,
 ) -> str:
     """Add a file attachment to an email draft or message.
 
@@ -403,6 +464,7 @@ def mail_add_attachment(
         file_path: Absolute path to the local file to attach
         filename: Filename for the attachment (defaults to the local filename)
         content_type: MIME type (auto-detected from filename if not provided)
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
     """
     import base64
     import mimetypes
@@ -431,7 +493,8 @@ def mail_add_attachment(
         "content_bytes": content_bytes,
         "content_type": content_type,
     }
-    result = _post(f"/mail/messages/{message_id}/attachments", data)
+    params = {"user": user} if user else None
+    result = _post(f"/mail/messages/{message_id}/attachments", data, params=params)
     return json.dumps(result, default=str)
 
 
@@ -440,9 +503,14 @@ def mail_add_attachment(
 # ===========================================================================
 
 @mcp.tool()
-def calendar_list_calendars() -> str:
-    """List all calendars the user has access to."""
-    return json.dumps(_get("/calendar/calendars"), default=str)
+def calendar_list_calendars(user: str | None = None) -> str:
+    """List all calendars the user has access to.
+
+    Args:
+        user: UPN of another user whose calendar list you have Full Access to. Default: your own.
+    """
+    params = {"user": user} if user else None
+    return json.dumps(_get("/calendar/calendars", params), default=str)
 
 
 @mcp.tool()
@@ -452,6 +520,7 @@ def calendar_list_events(
     skip: int = 0,
     order_by: str = "start/dateTime desc",
     filter: str | None = None,
+    user: str | None = None,
 ) -> str:
     """List calendar events from the event store (newest first by default).
 
@@ -465,21 +534,26 @@ def calendar_list_events(
         skip: Number of events to skip for pagination (default 0)
         order_by: OData $orderby expression (default "start/dateTime desc" — newest first). Use "start/dateTime" for oldest first.
         filter: OData filter expression
+        user: UPN of another user whose calendar you have Full Access to. Default: your own.
     """
     params = {"top": top, "skip": skip, "order_by": order_by, "filter": filter}
     if calendar_id:
         params["calendar_id"] = calendar_id
+    if user:
+        params["user"] = user
     return json.dumps(_get("/calendar/events", params), default=str)
 
 
 @mcp.tool()
-def calendar_get_event(event_id: str) -> str:
+def calendar_get_event(event_id: str, user: str | None = None) -> str:
     """Get a specific calendar event by ID.
 
     Args:
         event_id: Event ID
+        user: UPN of another user whose calendar you have Full Access to. Default: your own.
     """
-    return json.dumps(_get(f"/calendar/events/{event_id}"), default=str)
+    params = {"user": user} if user else None
+    return json.dumps(_get(f"/calendar/events/{event_id}", params), default=str)
 
 
 @mcp.tool()
@@ -488,6 +562,7 @@ def calendar_view(
     end_datetime: str,
     calendar_id: str | None = None,
     top: int = 100,
+    user: str | None = None,
 ) -> str:
     """Get calendar events in a date range — the preferred tool for upcoming events.
 
@@ -500,6 +575,7 @@ def calendar_view(
         end_datetime: End in ISO 8601 (e.g. '2026-02-18T23:59:59')
         calendar_id: Calendar ID (default: primary)
         top: Max events to return (default 100)
+        user: UPN of another user whose calendar you have Full Access to. Default: your own.
     """
     params = {
         "start_datetime": start_datetime,
@@ -508,6 +584,8 @@ def calendar_view(
     }
     if calendar_id:
         params["calendar_id"] = calendar_id
+    if user:
+        params["user"] = user
     return json.dumps(_get("/calendar/view", params), default=str)
 
 
@@ -619,6 +697,7 @@ def files_search(
     q: str,
     drive_id: str | None = None,
     top: int = 25,
+    user: str | None = None,
 ) -> str:
     """Search for files in OneDrive or SharePoint.
 
@@ -626,33 +705,52 @@ def files_search(
         q: Search query
         drive_id: Drive ID to search in (default: user's OneDrive)
         top: Max results (default 25)
+        user: UPN (e.g. "caroline@revivalgourmet.com") of another user whose OneDrive you have access to. Default: your own OneDrive. Ignored if drive_id is provided.
     """
     params = {"q": q, "top": top}
     if drive_id:
         params["drive_id"] = drive_id
+    if user:
+        params["user"] = user
     return json.dumps(_get("/files/search", params), default=str)
 
 
 @mcp.tool()
 def files_list_children(
     item_id: str,
+    drive_id: str | None = None,
+    user: str | None = None,
 ) -> str:
     """List files and folders inside a OneDrive folder.
 
     Args:
         item_id: Folder item ID (use 'root' for root folder)
+        drive_id: Drive ID (default: user's OneDrive). Required for SharePoint drives.
+        user: UPN of another user whose OneDrive folder you have access to. Default: your own. Ignored if drive_id is provided.
     """
-    return json.dumps(_get(f"/files/items/{item_id}/children"), default=str)
+    params = {}
+    if drive_id:
+        params["drive_id"] = drive_id
+    if user:
+        params["user"] = user
+    return json.dumps(_get(f"/files/items/{item_id}/children", params or None), default=str)
 
 
 @mcp.tool()
-def files_get_item(item_id: str) -> str:
+def files_get_item(item_id: str, drive_id: str | None = None, user: str | None = None) -> str:
     """Get metadata for a file or folder.
 
     Args:
         item_id: Item ID
+        drive_id: Drive ID (default: user's OneDrive). Required for SharePoint drives.
+        user: UPN of another user whose OneDrive item you have access to. Default: your own. Ignored if drive_id is provided.
     """
-    return json.dumps(_get(f"/files/items/{item_id}"), default=str)
+    params = {}
+    if drive_id:
+        params["drive_id"] = drive_id
+    if user:
+        params["user"] = user
+    return json.dumps(_get(f"/files/items/{item_id}", params or None), default=str)
 
 
 @mcp.tool()
@@ -661,6 +759,7 @@ def files_download_file(
     filename: str,
     drive_id: str | None = None,
     max_size_bytes: int = 10_485_760,
+    user: str | None = None,
 ) -> str:
     """Download a OneDrive/SharePoint file (PDF, XLSX, DOCX, etc.) and save to a local temp file.
 
@@ -671,6 +770,7 @@ def files_download_file(
         filename: Original filename (for safe naming in /tmp)
         drive_id: Drive ID (required for SharePoint drives)
         max_size_bytes: Maximum file size in bytes (default 10MB)
+        user: UPN of another user whose OneDrive file you have access to. Default: your own. Ignored if drive_id is provided.
     """
     import os
     import re
@@ -684,6 +784,8 @@ def files_download_file(
     params = {}
     if drive_id:
         params["drive_id"] = drive_id
+    if user:
+        params["user"] = user
     with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=60) as c:
         r = c.get(f"/files/items/{item_id}/content", params=params)
         r.raise_for_status()
