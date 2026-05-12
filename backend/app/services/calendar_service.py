@@ -3,12 +3,19 @@ from datetime import datetime
 from app.services.graph_client import GraphClient
 
 
+def _scope(user: Optional[str]) -> str:
+    """Return '/me' or '/users/{upn}' — for accessing a shared calendar
+    via Full Access delegation.
+    """
+    return f"/users/{user}" if user else "/me"
+
+
 class CalendarService:
     def __init__(self, graph_client: GraphClient):
         self.client = graph_client
 
-    async def list_calendars(self) -> dict:
-        return await self.client.get("/me/calendars")
+    async def list_calendars(self, user: Optional[str] = None) -> dict:
+        return await self.client.get(f"{_scope(user)}/calendars")
 
     async def list_events(
         self,
@@ -17,11 +24,13 @@ class CalendarService:
         skip: int = 0,
         order_by: str = "start/dateTime",
         filter_query: Optional[str] = None,
+        user: Optional[str] = None,
     ) -> dict:
+        prefix = _scope(user)
         if calendar_id:
-            endpoint = f"/me/calendars/{calendar_id}/events"
+            endpoint = f"{prefix}/calendars/{calendar_id}/events"
         else:
-            endpoint = "/me/events"
+            endpoint = f"{prefix}/events"
 
         params = {
             "$top": top,
@@ -40,11 +49,13 @@ class CalendarService:
         end_datetime: datetime,
         calendar_id: Optional[str] = None,
         top: int = 100,
+        user: Optional[str] = None,
     ) -> dict:
+        prefix = _scope(user)
         if calendar_id:
-            endpoint = f"/me/calendars/{calendar_id}/calendarView"
+            endpoint = f"{prefix}/calendars/{calendar_id}/calendarView"
         else:
-            endpoint = "/me/calendarView"
+            endpoint = f"{prefix}/calendarView"
 
         params = {
             "startDateTime": start_datetime.replace(tzinfo=None).isoformat() + "Z",
@@ -54,8 +65,8 @@ class CalendarService:
 
         return await self.client.get(endpoint, params=params)
 
-    async def get_event(self, event_id: str) -> dict:
-        return await self.client.get(f"/me/events/{event_id}")
+    async def get_event(self, event_id: str, user: Optional[str] = None) -> dict:
+        return await self.client.get(f"{_scope(user)}/events/{event_id}")
 
     async def create_event(
         self,

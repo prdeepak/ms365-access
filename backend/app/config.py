@@ -37,8 +37,10 @@ class Settings(BaseSettings):
     scopes: list[str] = [
         "User.Read",
         "Mail.ReadWrite",
+        "Mail.ReadWrite.Shared",
         "Mail.Send",
         "Calendars.ReadWrite",
+        "Calendars.Read.Shared",
         "Contacts.ReadWrite",
         "Files.ReadWrite.All",
         "https://analysis.windows.net/powerbi/api/Dataset.ReadWrite.All",

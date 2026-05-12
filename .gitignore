@@ -33,4 +33,8 @@ Thumbs.db
 *.pid
 .uvicorn.pid
 
+# API key store (sqlite with hashed keys — never commit)
+backend/api_keys.db
+*.db
+
 # Audit logs (covered by data/)

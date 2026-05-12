@@ -6,6 +6,13 @@ from app.services.graph_client import GraphClient
 logger = logging.getLogger(__name__)
 
 
+def _scope(user: Optional[str]) -> str:
+    """Return the Graph URL prefix: '/me' for the auth'd user, or '/users/{upn}'
+    for a shared mailbox the auth'd user has Full Access to.
+    """
+    return f"/users/{user}" if user else "/me"
+
+
 class MailService:
     def __init__(self, graph_client: GraphClient):
         self.client = graph_client
@@ -42,20 +49,20 @@ class MailService:
         # Plain email address
         return {"emailAddress": {"address": value.strip()}}
 
-    async def list_folders(self) -> dict:
-        return await self.client.get("/me/mailFolders")
+    async def list_folders(self, user: Optional[str] = None) -> dict:
+        return await self.client.get(f"{_scope(user)}/mailFolders")
 
-    async def get_folder(self, folder_id: str) -> dict:
+    async def get_folder(self, folder_id: str, user: Optional[str] = None) -> dict:
         """Get a folder by ID or well-known name (inbox, archive, junkemail, etc.)."""
-        return await self.client.get(f"/me/mailFolders/{folder_id}")
+        return await self.client.get(f"{_scope(user)}/mailFolders/{folder_id}")
 
-    async def resolve_folder_name(self, name: str) -> dict:
+    async def resolve_folder_name(self, name: str, user: Optional[str] = None) -> dict:
         """Resolve a well-known folder name to its full folder object including ID.
 
         Well-known folder names: inbox, drafts, sentitems, deleteditems,
         junkemail, archive, outbox, etc.
         """
-        folder = await self.get_folder(name)
+        folder = await self.get_folder(name, user=user)
         return folder
 
     async def list_messages(
@@ -68,11 +75,13 @@ class MailService:
         order_by: str = "receivedDateTime desc",
         select_fields: Optional[str] = None,
         include_body: bool = False,
+        user: Optional[str] = None,
     ) -> dict:
+        prefix = _scope(user)
         if folder_id:
-            endpoint = f"/me/mailFolders/{folder_id}/messages"
+            endpoint = f"{prefix}/mailFolders/{folder_id}/messages"
         else:
-            endpoint = "/me/messages"
+            endpoint = f"{prefix}/messages"
 
         params = {
             "$top": top,
@@ -112,8 +121,8 @@ class MailService:
 
         return result
 
-    async def get_message(self, message_id: str) -> dict:
-        return await self.client.get(f"/me/messages/{message_id}")
+    async def get_message(self, message_id: str, user: Optional[str] = None) -> dict:
+        return await self.client.get(f"{_scope(user)}/messages/{message_id}")
 
     async def send_mail(
         self,
@@ -125,6 +134,7 @@ class MailService:
         bcc_recipients: list = [],
         importance: str = "normal",
         save_to_sent_items: bool = True,
+        user: Optional[str] = None,
     ) -> dict:
         message = {
             "subject": subject,
@@ -146,15 +156,16 @@ class MailService:
             "saveToSentItems": save_to_sent_items,
         }
 
-        return await self.client.post("/me/sendMail", data)
+        return await self.client.post(f"{_scope(user)}/sendMail", data)
 
     async def reply_to_message(
         self,
         message_id: str,
         comment: str,
         reply_all: bool = False,
+        user: Optional[str] = None,
     ) -> dict:
-        endpoint = f"/me/messages/{message_id}/{'replyAll' if reply_all else 'reply'}"
+        endpoint = f"{_scope(user)}/messages/{message_id}/{'replyAll' if reply_all else 'reply'}"
         return await self.client.post(endpoint, {"comment": comment})
 
     async def forward_message(
@@ -162,12 +173,13 @@ class MailService:
         message_id: str,
         comment: str,
         to_recipients: list,
+        user: Optional[str] = None,
     ) -> dict:
         data = {
             "comment": comment,
             "toRecipients": [self._parse_recipient(r) for r in to_recipients],
         }
-        return await self.client.post(f"/me/messages/{message_id}/forward", data)
+        return await self.client.post(f"{_scope(user)}/messages/{message_id}/forward", data)
 
     async def update_message(
         self,
@@ -180,6 +192,7 @@ class MailService:
         subject: Optional[str] = None,
         to_recipients: Optional[list] = None,
         cc_recipients: Optional[list] = None,
+        user: Optional[str] = None,
     ) -> dict:
         data = {}
         if is_read is not None:
@@ -200,10 +213,14 @@ class MailService:
         if cc_recipients is not None:
             data["ccRecipients"] = [self._parse_recipient(r) for r in cc_recipients]
 
-        return await self.client.patch(f"/me/messages/{message_id}", data)
+        return await self.client.patch(f"{_scope(user)}/messages/{message_id}", data)
 
     async def move_message(
-        self, message_id: str, destination_folder_id: str, verify: bool = True
+        self,
+        message_id: str,
+        destination_folder_id: str,
+        verify: bool = True,
+        user: Optional[str] = None,
     ) -> dict:
         """Move a message to a destination folder.
 
@@ -211,6 +228,7 @@ class MailService:
             message_id: The ID of the message to move
             destination_folder_id: The destination folder ID or well-known name
             verify: If True, verify the move by checking parentFolderId after
+            user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
 
         Returns:
             dict with the moved message data and 'verified' key if verify=True
@@ -219,14 +237,14 @@ class MailService:
         resolved_folder_id = destination_folder_id
         if verify:
             try:
-                folder = await self.get_folder(destination_folder_id)
+                folder = await self.get_folder(destination_folder_id, user=user)
                 resolved_folder_id = folder.get("id", destination_folder_id)
             except Exception:
                 # If we can't resolve, use the provided ID as-is
                 pass
 
         result = await self.client.post(
-            f"/me/messages/{message_id}/move",
+            f"{_scope(user)}/messages/{message_id}/move",
             {"destinationId": destination_folder_id},
         )
 
@@ -248,12 +266,12 @@ class MailService:
 
         return result
 
-    async def delete_message(self, message_id: str) -> None:
-        await self.client.delete(f"/me/messages/{message_id}")
+    async def delete_message(self, message_id: str, user: Optional[str] = None) -> None:
+        await self.client.delete(f"{_scope(user)}/messages/{message_id}")
 
-    async def send_draft(self, message_id: str) -> None:
+    async def send_draft(self, message_id: str, user: Optional[str] = None) -> None:
         """Send an existing draft message."""
-        await self.client.post(f"/me/messages/{message_id}/send", {})
+        await self.client.post(f"{_scope(user)}/messages/{message_id}/send", {})
 
     async def create_draft(
         self,
@@ -264,10 +282,12 @@ class MailService:
         cc_recipients: list | None = None,
         bcc_recipients: list | None = None,
         importance: str = "normal",
+        user: Optional[str] = None,
     ) -> dict:
         """Create a new draft message in the Drafts folder (does not send it).
 
-        Uses POST /me/messages, which saves to Drafts without sending.
+        Uses POST /me/messages (or /users/{upn}/messages for a shared mailbox),
+        which saves to Drafts without sending.
         """
         payload: dict = {
             "subject": subject,
@@ -281,10 +301,14 @@ class MailService:
         if bcc_recipients:
             payload["bccRecipients"] = [self._parse_recipient(r) for r in bcc_recipients]
 
-        return await self.client.post("/me/messages", payload)
+        return await self.client.post(f"{_scope(user)}/messages", payload)
 
     async def create_reply_draft(
-        self, message_id: str, reply_all: bool = False, comment: str = ""
+        self,
+        message_id: str,
+        reply_all: bool = False,
+        comment: str = "",
+        user: Optional[str] = None,
     ) -> dict:
         """Create a draft reply to a message (does not send it).
 
@@ -292,7 +316,7 @@ class MailService:
         message in the Drafts folder with the proper reply headers.
         The optional comment is inserted as the reply body text.
         """
-        endpoint = f"/me/messages/{message_id}/{'createReplyAll' if reply_all else 'createReply'}"
+        endpoint = f"{_scope(user)}/messages/{message_id}/{'createReplyAll' if reply_all else 'createReply'}"
         data = {"comment": comment} if comment else {}
         return await self.client.post(endpoint, data)
 
@@ -300,18 +324,20 @@ class MailService:
         self,
         query: str,
         top: int = 25,
+        user: Optional[str] = None,
     ) -> dict:
         params = {
             "$search": f'"{query}"',
             "$top": top,
             "$select": "id,subject,bodyPreview,from,toRecipients,receivedDateTime,isRead,hasAttachments",
         }
-        return await self.client.get("/me/messages", params=params)
+        return await self.client.get(f"{_scope(user)}/messages", params=params)
 
     async def list_threads(
         self,
         folder_id: Optional[str] = None,
         top: int = 25,
+        user: Optional[str] = None,
     ) -> list[dict]:
         """List messages grouped by conversationId, ordered by most recent thread activity.
 
@@ -321,10 +347,11 @@ class MailService:
         # Fetch more messages than requested threads to get enough conversations
         fetch_count = min(top * 10, 250)
 
+        prefix = _scope(user)
         if folder_id:
-            endpoint = f"/me/mailFolders/{folder_id}/messages"
+            endpoint = f"{prefix}/mailFolders/{folder_id}/messages"
         else:
-            endpoint = "/me/messages"
+            endpoint = f"{prefix}/messages"
 
         params = {
             "$top": fetch_count,
@@ -373,18 +400,18 @@ class MailService:
 
         return sorted_threads[:top]
 
-    async def list_attachments(self, message_id: str) -> list[dict]:
+    async def list_attachments(self, message_id: str, user: Optional[str] = None) -> list[dict]:
         """List attachments for a message."""
         result = await self.client.get(
-            f"/me/messages/{message_id}/attachments",
+            f"{_scope(user)}/messages/{message_id}/attachments",
             params={"$select": "id,name,size,contentType,isInline"},
         )
         return result.get("value", [])
 
-    async def get_attachment(self, message_id: str, attachment_id: str) -> bytes:
+    async def get_attachment(self, message_id: str, attachment_id: str, user: Optional[str] = None) -> bytes:
         """Download attachment content (raw bytes)."""
         return await self.client.get_raw(
-            f"/me/messages/{message_id}/attachments/{attachment_id}/$value"
+            f"{_scope(user)}/messages/{message_id}/attachments/{attachment_id}/$value"
         )
 
     async def add_attachment(
@@ -393,6 +420,7 @@ class MailService:
         name: str,
         content_bytes: str,
         content_type: str = "application/octet-stream",
+        user: Optional[str] = None,
     ) -> dict:
         """Add a file attachment to a message or draft.
 
@@ -401,6 +429,7 @@ class MailService:
             name: Filename for the attachment.
             content_bytes: Base64-encoded file content.
             content_type: MIME type of the attachment.
+            user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
 
         Returns:
             The created attachment object from MS Graph.
@@ -412,5 +441,5 @@ class MailService:
             "contentType": content_type,
         }
         return await self.client.post(
-            f"/me/messages/{message_id}/attachments", data
+            f"{_scope(user)}/messages/{message_id}/attachments", data
         )

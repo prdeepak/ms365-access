@@ -16,26 +16,31 @@ def get_onedrive_service(graph_client: GraphClient = Depends(get_graph_client)) 
 
 
 @router.get("/drives", dependencies=[Depends(require_permission("read:files"))])
-async def list_drives(onedrive_service: OneDriveService = Depends(get_onedrive_service)):
-    result = await onedrive_service.list_drives()
+async def list_drives(
+    user: Optional[str] = Query(None, description="UPN of another user (e.g. caroline@revivalgourmet.com) whose drives you have access to."),
+    onedrive_service: OneDriveService = Depends(get_onedrive_service),
+):
+    result = await onedrive_service.list_drives(user=user)
     return result.get("value", [])
 
 
 @router.get("/drive/root", dependencies=[Depends(require_permission("read:files"))])
 async def get_drive_root(
     drive_id: Optional[str] = None,
+    user: Optional[str] = Query(None, description="UPN of another user whose default OneDrive root you have access to."),
     onedrive_service: OneDriveService = Depends(get_onedrive_service),
 ):
-    return await onedrive_service.get_drive_root(drive_id=drive_id)
+    return await onedrive_service.get_drive_root(drive_id=drive_id, user=user)
 
 
 @router.get("/items/{item_id}", dependencies=[Depends(require_permission("read:files"))])
 async def get_item(
     item_id: str,
     drive_id: Optional[str] = None,
+    user: Optional[str] = Query(None, description="UPN of another user whose OneDrive item you have access to."),
     onedrive_service: OneDriveService = Depends(get_onedrive_service),
 ):
-    return await onedrive_service.get_item(item_id=item_id, drive_id=drive_id)
+    return await onedrive_service.get_item(item_id=item_id, drive_id=drive_id, user=user)
 
 
 @router.get("/items/{item_id}/children", dependencies=[Depends(require_permission("read:files"))])
@@ -45,6 +50,7 @@ async def list_children(
     top: int = Query(100, ge=1, le=200),
     skip: int = Query(0, ge=0),
     order_by: str = "name",
+    user: Optional[str] = Query(None, description="UPN of another user whose OneDrive folder you have access to."),
     onedrive_service: OneDriveService = Depends(get_onedrive_service),
 ):
     result = await onedrive_service.list_children(
@@ -53,6 +59,7 @@ async def list_children(
         top=top,
         skip=skip,
         order_by=order_by,
+        user=user,
     )
     return result.get("value", [])
 
@@ -61,10 +68,11 @@ async def list_children(
 async def download_content(
     item_id: str,
     drive_id: Optional[str] = None,
+    user: Optional[str] = Query(None, description="UPN of another user whose OneDrive file you have access to."),
     onedrive_service: OneDriveService = Depends(get_onedrive_service),
     auth: Auth = Depends(get_current_auth),
 ):
-    content = await onedrive_service.download_content(item_id=item_id, drive_id=drive_id)
+    content = await onedrive_service.download_content(item_id=item_id, drive_id=drive_id, user=user)
     audit.log_file_download(auth.email, item_id)
     return Response(content=content, media_type="application/octet-stream")
 
@@ -172,7 +180,8 @@ async def search_files(
     q: str,
     drive_id: Optional[str] = None,
     top: int = Query(25, ge=1, le=100),
+    user: Optional[str] = Query(None, description="UPN of another user whose OneDrive you have access to. Default: your own OneDrive."),
     onedrive_service: OneDriveService = Depends(get_onedrive_service),
 ):
-    result = await onedrive_service.search(query=q, drive_id=drive_id, top=top)
+    result = await onedrive_service.search(query=q, drive_id=drive_id, top=top, user=user)
     return result.get("value", [])

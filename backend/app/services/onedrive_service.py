@@ -2,22 +2,31 @@ from typing import Optional
 from app.services.graph_client import GraphClient
 
 
+def _user_drive(user: Optional[str]) -> str:
+    """Return the Graph URL prefix for a user's default drive: '/me/drive' for
+    the auth'd user, or '/users/{upn}/drive' for someone whose OneDrive the
+    auth'd user has been granted access to.
+    """
+    return f"/users/{user}/drive" if user else "/me/drive"
+
+
 class OneDriveService:
     def __init__(self, graph_client: GraphClient):
         self.client = graph_client
 
-    async def list_drives(self) -> dict:
-        return await self.client.get("/me/drives")
+    async def list_drives(self, user: Optional[str] = None) -> dict:
+        prefix = f"/users/{user}" if user else "/me"
+        return await self.client.get(f"{prefix}/drives")
 
-    async def get_drive_root(self, drive_id: Optional[str] = None) -> dict:
+    async def get_drive_root(self, drive_id: Optional[str] = None, user: Optional[str] = None) -> dict:
         if drive_id:
             return await self.client.get(f"/drives/{drive_id}/root")
-        return await self.client.get("/me/drive/root")
+        return await self.client.get(f"{_user_drive(user)}/root")
 
-    async def get_item(self, item_id: str, drive_id: Optional[str] = None) -> dict:
+    async def get_item(self, item_id: str, drive_id: Optional[str] = None, user: Optional[str] = None) -> dict:
         if drive_id:
             return await self.client.get(f"/drives/{drive_id}/items/{item_id}")
-        return await self.client.get(f"/me/drive/items/{item_id}")
+        return await self.client.get(f"{_user_drive(user)}/items/{item_id}")
 
     async def list_children(
         self,
@@ -26,6 +35,7 @@ class OneDriveService:
         top: int = 100,
         skip: int = 0,
         order_by: str = "name",
+        user: Optional[str] = None,
     ) -> dict:
         params = {
             "$top": top,
@@ -36,15 +46,15 @@ class OneDriveService:
         if drive_id:
             endpoint = f"/drives/{drive_id}/items/{item_id}/children"
         else:
-            endpoint = f"/me/drive/items/{item_id}/children"
+            endpoint = f"{_user_drive(user)}/items/{item_id}/children"
 
         return await self.client.get(endpoint, params=params)
 
-    async def download_content(self, item_id: str, drive_id: Optional[str] = None) -> bytes:
+    async def download_content(self, item_id: str, drive_id: Optional[str] = None, user: Optional[str] = None) -> bytes:
         if drive_id:
             endpoint = f"/drives/{drive_id}/items/{item_id}/content"
         else:
-            endpoint = f"/me/drive/items/{item_id}/content"
+            endpoint = f"{_user_drive(user)}/items/{item_id}/content"
 
         return await self.client.get_raw(endpoint)
 
@@ -141,12 +151,13 @@ class OneDriveService:
         query: str,
         drive_id: Optional[str] = None,
         top: int = 25,
+        user: Optional[str] = None,
     ) -> dict:
         params = {"$top": top}
 
         if drive_id:
             endpoint = f"/drives/{drive_id}/root/search(q='{query}')"
         else:
-            endpoint = f"/me/drive/root/search(q='{query}')"
+            endpoint = f"{_user_drive(user)}/root/search(q='{query}')"
 
         return await self.client.get(endpoint, params=params)
