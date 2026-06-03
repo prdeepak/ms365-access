@@ -494,7 +494,6 @@ make down  # Stop
 | DELETE | `/workbook/items/{item_id}/worksheet?sheet=...&site_id=...&session_id=...&...` | Delete Worksheet |
 | GET | `/workbook/items/{item_id}/worksheet?sheet=...&site_id=...&session_id=...` | Get Worksheet |
 | PATCH | `/workbook/items/{item_id}/worksheet?site_id=...&session_id=...&auto_session=...` | Update Worksheet |
-| POST | `/workbook/items/{item_id}/worksheet/copy?site_id=...&session_id=...&auto_session=...` | Copy Worksheet |
 | POST | `/workbook/items/{item_id}/worksheet/protect?site_id=...&session_id=...&auto_session=...` | Protect Worksheet |
 | POST | `/workbook/items/{item_id}/worksheet/unprotect?site_id=...&session_id=...&auto_session=...` | Unprotect Worksheet |
 | GET | `/workbook/items/{item_id}/worksheets?site_id=...&session_id=...` | List Worksheets |

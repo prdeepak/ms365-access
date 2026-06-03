@@ -909,18 +909,6 @@ class Ms365Client:
         params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
         return self._patch_json(f"/workbook/items/{item_id}/worksheet", data, params)
 
-    def copy_worksheet(
-            self,
-            item_id,
-            data=None,
-            site_id=None,
-            session_id=None,
-            auto_session=True,
-    ):
-        """Copy Worksheet"""
-        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
-        return self._post_json(f"/workbook/items/{item_id}/worksheet/copy", data, params)
-
     def protect_worksheet(
             self,
             item_id,
