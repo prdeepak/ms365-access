@@ -13,11 +13,11 @@ RUN apt-get update && apt-get install -y \
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Copy requirements first for layer caching
-COPY backend/requirements.txt .
+# Copy the hash-pinned lock first for layer caching
+COPY backend/requirements.lock .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies, verifying every package against its pinned hash
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 # Copy application code
 COPY backend/ .
