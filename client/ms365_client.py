@@ -828,6 +828,18 @@ class Ms365Client:
         params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
         return self._patch_json(f"/workbook/items/{item_id}/range", data, params)
 
+    def clear_range(
+            self,
+            item_id,
+            data=None,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Clear Range"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._post_json(f"/workbook/items/{item_id}/range/clear", data, params)
+
     def close_session(self, item_id, session_id, site_id=None):
         """Close Session"""
         params = {k: v for k, v in {"session_id": session_id, "site_id": site_id}.items() if v is not None}
@@ -856,7 +868,96 @@ class Ms365Client:
         params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
         return self._post_json(f"/workbook/items/{item_id}/tables/{table}/rows", data, params)
 
+    def get_used_range(
+            self,
+            item_id,
+            sheet,
+            values_only=False,
+            site_id=None,
+            session_id=None,
+    ):
+        """Get Used Range"""
+        params = {k: v for k, v in {"sheet": sheet, "values_only": values_only, "site_id": site_id, "session_id": session_id}.items() if v is not None}
+        return self._get_json(f"/workbook/items/{item_id}/used-range", params)
+
+    def delete_worksheet(
+            self,
+            item_id,
+            sheet,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Delete Worksheet"""
+        params = {k: v for k, v in {"sheet": sheet, "site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._delete_json(f"/workbook/items/{item_id}/worksheet", params)
+
+    def get_worksheet(self, item_id, sheet, site_id=None, session_id=None):
+        """Get Worksheet"""
+        params = {k: v for k, v in {"sheet": sheet, "site_id": site_id, "session_id": session_id}.items() if v is not None}
+        return self._get_json(f"/workbook/items/{item_id}/worksheet", params)
+
+    def update_worksheet(
+            self,
+            item_id,
+            data=None,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Update Worksheet"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._patch_json(f"/workbook/items/{item_id}/worksheet", data, params)
+
+    def copy_worksheet(
+            self,
+            item_id,
+            data=None,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Copy Worksheet"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._post_json(f"/workbook/items/{item_id}/worksheet/copy", data, params)
+
+    def protect_worksheet(
+            self,
+            item_id,
+            data=None,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Protect Worksheet"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._post_json(f"/workbook/items/{item_id}/worksheet/protect", data, params)
+
+    def unprotect_worksheet(
+            self,
+            item_id,
+            data=None,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Unprotect Worksheet"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._post_json(f"/workbook/items/{item_id}/worksheet/unprotect", data, params)
+
     def list_worksheets(self, item_id, site_id=None, session_id=None):
         """List Worksheets"""
         params = {k: v for k, v in {"site_id": site_id, "session_id": session_id}.items() if v is not None}
         return self._get_json(f"/workbook/items/{item_id}/worksheets", params)
+
+    def add_worksheet(
+            self,
+            item_id,
+            data=None,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Add Worksheet"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._post_json(f"/workbook/items/{item_id}/worksheets", data, params)

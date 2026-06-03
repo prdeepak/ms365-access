@@ -485,10 +485,19 @@ make down  # Stop
 | GET | `/workbook/items/{item_id}/lock-state?site_id=...` | Lock State |
 | GET | `/workbook/items/{item_id}/range?sheet=...&address=...&site_id=...&...` | Get Range |
 | PATCH | `/workbook/items/{item_id}/range?site_id=...&session_id=...&auto_session=...` | Update Range |
+| POST | `/workbook/items/{item_id}/range/clear?site_id=...&session_id=...&auto_session=...` | Clear Range |
 | DELETE | `/workbook/items/{item_id}/session?session_id=...&site_id=...` | Close Session |
 | POST | `/workbook/items/{item_id}/session?site_id=...&persist=...` | Create Session |
 | GET | `/workbook/items/{item_id}/tables?site_id=...&session_id=...` | List Tables |
 | POST | `/workbook/items/{item_id}/tables/{table}/rows?site_id=...&session_id=...&auto_session=...` | Add Table Row |
+| GET | `/workbook/items/{item_id}/used-range?sheet=...&values_only=...&site_id=...&...` | Get Used Range |
+| DELETE | `/workbook/items/{item_id}/worksheet?sheet=...&site_id=...&session_id=...&...` | Delete Worksheet |
+| GET | `/workbook/items/{item_id}/worksheet?sheet=...&site_id=...&session_id=...` | Get Worksheet |
+| PATCH | `/workbook/items/{item_id}/worksheet?site_id=...&session_id=...&auto_session=...` | Update Worksheet |
+| POST | `/workbook/items/{item_id}/worksheet/copy?site_id=...&session_id=...&auto_session=...` | Copy Worksheet |
+| POST | `/workbook/items/{item_id}/worksheet/protect?site_id=...&session_id=...&auto_session=...` | Protect Worksheet |
+| POST | `/workbook/items/{item_id}/worksheet/unprotect?site_id=...&session_id=...&auto_session=...` | Unprotect Worksheet |
 | GET | `/workbook/items/{item_id}/worksheets?site_id=...&session_id=...` | List Worksheets |
+| POST | `/workbook/items/{item_id}/worksheets?site_id=...&session_id=...&auto_session=...` | Add Worksheet |
 
 <!-- GEN:API_END -->
