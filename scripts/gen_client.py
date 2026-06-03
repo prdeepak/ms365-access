@@ -216,26 +216,32 @@ def gen_method(ep):
     for p in ep["path_params"]:
         args.append(p["name"])
 
-    # Request body fields: required first, then optional
+    # Split body and query params into required (no default) vs optional.
+    # All required args MUST precede any defaulted arg, or the generated
+    # signature is invalid Python ("non-default follows default").
     generic_body = ep.get("has_request_body", False) and not ep["body_fields"]
     req_body = [f for f in ep["body_fields"] if f["required"]]
     opt_body = [f for f in ep["body_fields"] if not f["required"]]
+
+    qp = [p for p in ep["query_params"] if not (HAS_ACCOUNT and p["name"] == "account")]
+    req_qp = [p for p in qp if p["required"] and get_py_default(p["schema"]) is None]
+    opt_qp = [p for p in qp if p not in req_qp]
+
+    # Required, no-default args first (body then query)
     for f in req_body:
         args.append(f["name"])
+    for p in req_qp:
+        args.append(p["name"])
+
+    # Then defaulted args (optional body, generic body, optional query)
     for f in opt_body:
         d = get_py_default(f["schema"]) or "None"
         args.append(f"{f['name']}={d}")
     if generic_body:
         args.append("data=None")
-
-    # Query params (skip account if HAS_ACCOUNT)
-    qp = [p for p in ep["query_params"] if not (HAS_ACCOUNT and p["name"] == "account")]
-    for p in sorted(qp, key=lambda p: not p["required"]):
+    for p in opt_qp:
         d = get_py_default(p["schema"])
-        if p["required"] and d is None:
-            args.append(p["name"])
-        else:
-            args.append(f"{p['name']}={d or 'None'}")
+        args.append(f"{p['name']}={d or 'None'}")
 
     # Account param at end
     has_acct = HAS_ACCOUNT and any(p["name"] == "account" for p in ep["query_params"])

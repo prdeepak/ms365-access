@@ -91,28 +91,6 @@ class Ms365Client:
             log.warning(f"PUT {path} failed: {e}")
             return None
 
-    def _put_multipart(self, path, file_bytes, filename, content_type="application/octet-stream", params=None, timeout=60):
-        """PUT with multipart/form-data file upload."""
-        import uuid
-        url = f"{self.base_url}{path}"
-        if params:
-            url += ("&" if "?" in path else "?") + urlencode(params)
-        boundary = uuid.uuid4().hex
-        body = (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-            f"Content-Type: {content_type}\r\n\r\n"
-        ).encode() + file_bytes + f"\r\n--{boundary}--\r\n".encode()
-        try:
-            req = Request(url, data=body, method="PUT")
-            req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
-            self._auth_header(req)
-            with urlopen(req, timeout=timeout) as resp:
-                return json.loads(resp.read().decode())
-        except (URLError, HTTPError, json.JSONDecodeError) as e:
-            log.warning(f"PUT (multipart) {path} failed: {e}")
-            return None
-
     def _patch_json(self, path, data=None, params=None, timeout=30):
         url = f"{self.base_url}{path}"
         if params:
@@ -152,18 +130,20 @@ class Ms365Client:
     # Mail
     # ------------------------------------------------------------------
 
-    def batch_delete_messages(self, message_ids):
+    def batch_delete_messages(self, message_ids, user=None):
         """Batch Delete Messages"""
         data = {}
         data["message_ids"] = message_ids
-        return self._post_json(f"/mail/batch/delete", data)
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/batch/delete", data, params)
 
-    def batch_move_messages(self, message_ids, destination_folder_id):
+    def batch_move_messages(self, message_ids, destination_folder_id, user=None):
         """Batch Move Messages"""
         data = {}
         data["message_ids"] = message_ids
         data["destination_folder_id"] = destination_folder_id
-        return self._post_json(f"/mail/batch/move", data)
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/batch/move", data, params)
 
     def create_draft(
             self,
@@ -174,6 +154,7 @@ class Ms365Client:
             cc_recipients=None,
             bcc_recipients=None,
             importance='normal',
+            user=None,
     ):
         """Create Draft"""
         data = {}
@@ -190,15 +171,18 @@ class Ms365Client:
             data["bcc_recipients"] = bcc_recipients
         if importance is not None:
             data["importance"] = importance
-        return self._post_json(f"/mail/drafts", data)
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/drafts", data, params)
 
-    def list_folders(self):
+    def list_folders(self, user=None):
         """List Folders"""
-        return self._get_json(f"/mail/folders")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._get_json(f"/mail/folders", params)
 
-    def resolve_folder_name(self, name):
+    def resolve_folder_name(self, name, user=None):
         """Resolve Folder Name"""
-        return self._get_json(f"/mail/folders/resolve/{name}")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._get_json(f"/mail/folders/resolve/{name}", params)
 
     def list_messages(
             self,
@@ -209,9 +193,11 @@ class Ms365Client:
             search=None,
             filter=None,
             order_by='receivedDateTime desc',
+            include_body=False,
+            user=None,
     ):
         """List Messages"""
-        params = {k: v for k, v in {"folder": folder, "folder_id": folder_id, "top": top, "skip": skip, "search": search, "filter": filter, "order_by": order_by}.items() if v is not None}
+        params = {k: v for k, v in {"folder": folder, "folder_id": folder_id, "top": top, "skip": skip, "search": search, "filter": filter, "order_by": order_by, "include_body": include_body, "user": user}.items() if v is not None}
         return self._get_json(f"/mail/messages", params)
 
     def send_mail(
@@ -224,6 +210,7 @@ class Ms365Client:
             bcc_recipients=None,
             importance='normal',
             save_to_sent_items=True,
+            user=None,
     ):
         """Send Mail"""
         data = {}
@@ -240,15 +227,18 @@ class Ms365Client:
             data["importance"] = importance
         if save_to_sent_items is not None:
             data["save_to_sent_items"] = save_to_sent_items
-        return self._post_json(f"/mail/messages", data)
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/messages", data, params)
 
-    def delete_message(self, message_id):
+    def delete_message(self, message_id, user=None):
         """Delete Message"""
-        return self._delete_json(f"/mail/messages/{message_id}")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._delete_json(f"/mail/messages/{message_id}", params)
 
-    def get_message(self, message_id):
+    def get_message(self, message_id, user=None):
         """Get Message"""
-        return self._get_json(f"/mail/messages/{message_id}")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._get_json(f"/mail/messages/{message_id}", params)
 
     def update_message(
             self,
@@ -258,6 +248,10 @@ class Ms365Client:
             categories=None,
             body=None,
             body_type=None,
+            subject=None,
+            to_recipients=None,
+            cc_recipients=None,
+            user=None,
     ):
         """Update Message"""
         data = {}
@@ -271,63 +265,93 @@ class Ms365Client:
             data["body"] = body
         if body_type is not None:
             data["body_type"] = body_type
-        return self._patch_json(f"/mail/messages/{message_id}", data)
+        if subject is not None:
+            data["subject"] = subject
+        if to_recipients is not None:
+            data["to_recipients"] = to_recipients
+        if cc_recipients is not None:
+            data["cc_recipients"] = cc_recipients
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._patch_json(f"/mail/messages/{message_id}", data, params)
 
-    def list_attachments(self, message_id):
+    def list_attachments(self, message_id, user=None):
         """List Attachments"""
-        return self._get_json(f"/mail/messages/{message_id}/attachments")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._get_json(f"/mail/messages/{message_id}/attachments", params)
 
-    def download_attachment(self, message_id, attachment_id):
+    def add_attachment(
+            self,
+            message_id,
+            name,
+            content_bytes,
+            content_type='application/octet-stream',
+            user=None,
+    ):
+        """Add Attachment"""
+        data = {}
+        data["name"] = name
+        data["content_bytes"] = content_bytes
+        if content_type is not None:
+            data["content_type"] = content_type
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/messages/{message_id}/attachments", data, params)
+
+    def download_attachment(self, message_id, attachment_id, user=None):
         """Download Attachment"""
-        return self._get_json(f"/mail/messages/{message_id}/attachments/{attachment_id}")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._get_json(f"/mail/messages/{message_id}/attachments/{attachment_id}", params)
 
-    def create_reply_draft(self, message_id, reply_all=False):
+    def create_reply_draft(self, message_id, data=None, reply_all=False, user=None):
         """Create Reply Draft"""
-        params = {k: v for k, v in {"reply_all": reply_all}.items() if v is not None}
-        return self._post_json(f"/mail/messages/{message_id}/draftReply", params=params)
+        params = {k: v for k, v in {"reply_all": reply_all, "user": user}.items() if v is not None}
+        return self._post_json(f"/mail/messages/{message_id}/draftReply", data, params)
 
-    def forward_message(self, message_id, comment, to_recipients):
+    def forward_message(self, message_id, comment, to_recipients, user=None):
         """Forward Message"""
         data = {}
         data["comment"] = comment
         data["to_recipients"] = to_recipients
-        return self._post_json(f"/mail/messages/{message_id}/forward", data)
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/messages/{message_id}/forward", data, params)
 
-    def move_message(self, message_id, destination_folder_id, verify=True):
+    def move_message(self, message_id, destination_folder_id, verify=True, user=None):
         """Move Message"""
         data = {}
         data["destination_folder_id"] = destination_folder_id
-        params = {k: v for k, v in {"verify": verify}.items() if v is not None}
+        params = {k: v for k, v in {"verify": verify, "user": user}.items() if v is not None}
         return self._post_json(f"/mail/messages/{message_id}/move", data, params)
 
-    def reply_to_message(self, message_id, comment, reply_all=False):
+    def reply_to_message(self, message_id, comment, reply_all=False, user=None):
         """Reply To Message"""
         data = {}
         data["comment"] = comment
         if reply_all is not None:
             data["reply_all"] = reply_all
-        return self._post_json(f"/mail/messages/{message_id}/reply", data)
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/messages/{message_id}/reply", data, params)
 
-    def send_draft(self, message_id):
+    def send_draft(self, message_id, user=None):
         """Send Draft"""
-        return self._post_json(f"/mail/messages/{message_id}/send")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/messages/{message_id}/send", params=params)
 
-    def search_messages(self, q, top=25, skip=0):
+    def search_messages(self, q, top=25, user=None):
         """Search Messages"""
-        params = {k: v for k, v in {"q": q, "top": top, "skip": skip}.items() if v is not None}
+        params = {k: v for k, v in {"q": q, "top": top, "user": user}.items() if v is not None}
         return self._get_json(f"/mail/search", params)
 
-    def list_threads(self, folder=None, folder_id=None, top=25):
+    def list_threads(self, folder=None, folder_id=None, top=25, user=None):
         """List Threads"""
-        params = {k: v for k, v in {"folder": folder, "folder_id": folder_id, "top": top}.items() if v is not None}
+        params = {k: v for k, v in {"folder": folder, "folder_id": folder_id, "top": top, "user": user}.items() if v is not None}
         return self._get_json(f"/mail/threads", params)
     # ------------------------------------------------------------------
     # Calendar
     # ------------------------------------------------------------------
 
-    def list_calendars(self):
+    def list_calendars(self, user=None):
         """List Calendars"""
-        return self._get_json(f"/calendar/calendars")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._get_json(f"/calendar/calendars", params)
 
     def list_events(
             self,
@@ -336,9 +360,10 @@ class Ms365Client:
             skip=0,
             order_by='start/dateTime',
             filter=None,
+            user=None,
     ):
         """List Events"""
-        params = {k: v for k, v in {"calendar_id": calendar_id, "top": top, "skip": skip, "order_by": order_by, "filter": filter}.items() if v is not None}
+        params = {k: v for k, v in {"calendar_id": calendar_id, "top": top, "skip": skip, "order_by": order_by, "filter": filter, "user": user}.items() if v is not None}
         return self._get_json(f"/calendar/events", params)
 
     def create_event(
@@ -393,9 +418,10 @@ class Ms365Client:
         """Delete Event"""
         return self._delete_json(f"/calendar/events/{event_id}")
 
-    def get_event(self, event_id):
+    def get_event(self, event_id, user=None):
         """Get Event"""
-        return self._get_json(f"/calendar/events/{event_id}")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._get_json(f"/calendar/events/{event_id}", params)
 
     def update_event(
             self,
@@ -477,31 +503,33 @@ class Ms365Client:
             end_datetime,
             calendar_id=None,
             top=100,
+            user=None,
     ):
         """Get Calendar View"""
-        params = {k: v for k, v in {"start_datetime": start_datetime, "end_datetime": end_datetime, "calendar_id": calendar_id, "top": top}.items() if v is not None}
+        params = {k: v for k, v in {"start_datetime": start_datetime, "end_datetime": end_datetime, "calendar_id": calendar_id, "top": top, "user": user}.items() if v is not None}
         return self._get_json(f"/calendar/view", params)
     # ------------------------------------------------------------------
     # Files
     # ------------------------------------------------------------------
 
-    def get_drive_root(self, drive_id=None):
+    def get_drive_root(self, drive_id=None, user=None):
         """Get Drive Root"""
-        params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
+        params = {k: v for k, v in {"drive_id": drive_id, "user": user}.items() if v is not None}
         return self._get_json(f"/files/drive/root", params)
 
-    def files_list_drives(self):
+    def files_list_drives(self, user=None):
         """List Drives"""
-        return self._get_json(f"/files/drives")
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._get_json(f"/files/drives", params)
 
     def delete_item(self, item_id, drive_id=None):
         """Delete Item"""
         params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
         return self._delete_json(f"/files/items/{item_id}", params)
 
-    def files_get_item(self, item_id, drive_id=None):
+    def files_get_item(self, item_id, drive_id=None, user=None):
         """Get Item"""
-        params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
+        params = {k: v for k, v in {"drive_id": drive_id, "user": user}.items() if v is not None}
         return self._get_json(f"/files/items/{item_id}", params)
 
     def update_item(self, item_id, name=None, parent_id=None, drive_id=None):
@@ -521,15 +549,21 @@ class Ms365Client:
             top=100,
             skip=0,
             order_by='name',
+            user=None,
     ):
         """List Children"""
-        params = {k: v for k, v in {"drive_id": drive_id, "top": top, "skip": skip, "order_by": order_by}.items() if v is not None}
+        params = {k: v for k, v in {"drive_id": drive_id, "top": top, "skip": skip, "order_by": order_by, "user": user}.items() if v is not None}
         return self._get_json(f"/files/items/{item_id}/children", params)
 
-    def files_download_content(self, item_id, drive_id=None):
+    def files_download_content(self, item_id, drive_id=None, user=None):
         """Download Content"""
-        params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
+        params = {k: v for k, v in {"drive_id": drive_id, "user": user}.items() if v is not None}
         return self._get_raw(f"/files/items/{item_id}/content", params)
+
+    def files_replace_content(self, item_id, data=None, drive_id=None):
+        """Replace Content"""
+        params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
+        return self._put_json(f"/files/items/{item_id}/content", data, params)
 
     def create_folder(self, parent_id, name, drive_id=None):
         """Create Folder"""
@@ -538,24 +572,14 @@ class Ms365Client:
         params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
         return self._post_json(f"/files/items/{parent_id}/folder", data, params)
 
-    def upload_content(self, parent_id, filename, file_bytes, content_type="application/octet-stream", drive_id=None):
-        """Upload a file to OneDrive/SharePoint.
-
-        Args:
-            parent_id: Parent folder item ID.
-            filename: Destination filename.
-            file_bytes: File content as bytes.
-            content_type: MIME type (default application/octet-stream).
-            drive_id: Drive ID (required for SharePoint drives).
-        """
-        from urllib.parse import quote
+    def files_upload_content(self, parent_id, filename, data=None, drive_id=None):
+        """Upload Content"""
         params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
-        safe_name = quote(filename, safe="")
-        return self._put_multipart(f"/files/items/{parent_id}:/{safe_name}:/content", file_bytes, filename, content_type, params)
+        return self._put_json(f"/files/items/{parent_id}:/{filename}:/content", data, params)
 
-    def search_files(self, q, drive_id=None, top=25):
+    def search_files(self, q, drive_id=None, top=25, user=None):
         """Search Files"""
-        params = {k: v for k, v in {"q": q, "drive_id": drive_id, "top": top}.items() if v is not None}
+        params = {k: v for k, v in {"q": q, "drive_id": drive_id, "top": top, "user": user}.items() if v is not None}
         return self._get_json(f"/files/search", params)
     # ------------------------------------------------------------------
     # Sharepoint
@@ -571,6 +595,11 @@ class Ms365Client:
         params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
         return self._get_json(f"/sharepoint/items/{item_id}", params)
 
+    def rename_item(self, item_id, site_id, data=None):
+        """Rename Item"""
+        params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
+        return self._patch_json(f"/sharepoint/items/{item_id}", data, params)
+
     def sharepoint_list_children(self, item_id, site_id, top=100, order_by='name'):
         """List Children"""
         params = {k: v for k, v in {"site_id": site_id, "top": top, "order_by": order_by}.items() if v is not None}
@@ -581,19 +610,37 @@ class Ms365Client:
         params = {k: v for k, v in {"site_id": site_id, "format": format}.items() if v is not None}
         return self._get_raw(f"/sharepoint/items/{item_id}/content", params)
 
-    def sharepoint_upload_content(self, parent_id, filename, file_bytes, site_id, content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"):
-        """Upload a file to a SharePoint site's default drive (uses site_id, not drive_id)."""
-        from urllib.parse import quote
+    def sharepoint_replace_content(self, item_id, site_id, data=None):
+        """Replace Content"""
         params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
-        safe_name = quote(filename, safe="")
-        return self._put_multipart(f"/sharepoint/items/{parent_id}:/{safe_name}:/content", file_bytes, filename, content_type, params)
+        return self._put_json(f"/sharepoint/items/{item_id}/content", data, params)
+
+    def move_item(self, item_id, site_id, data=None):
+        """Move Item"""
+        params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
+        return self._patch_json(f"/sharepoint/items/{item_id}/move", data, params)
+
+    def list_versions(self, item_id, site_id, top=50):
+        """List Versions"""
+        params = {k: v for k, v in {"site_id": site_id, "top": top}.items() if v is not None}
+        return self._get_json(f"/sharepoint/items/{item_id}/versions", params)
+
+    def download_version(self, item_id, version_id, site_id):
+        """Download Version"""
+        params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
+        return self._get_raw(f"/sharepoint/items/{item_id}/versions/{version_id}/content", params)
+
+    def sharepoint_upload_content(self, parent_id, filename, site_id, data=None):
+        """Upload Content"""
+        params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
+        return self._put_json(f"/sharepoint/items/{parent_id}:/{filename}:/content", data, params)
 
     def resolve_url(self, url):
         """Resolve Url"""
         params = {k: v for k, v in {"url": url}.items() if v is not None}
         return self._get_json(f"/sharepoint/resolve", params)
 
-    def sharepoint_search(self, q, site_id, top=25):
+    def search(self, q, site_id, top=25):
         """Search"""
         params = {k: v for k, v in {"q": q, "site_id": site_id, "top": top}.items() if v is not None}
         return self._get_json(f"/sharepoint/search", params)
@@ -651,3 +698,165 @@ class Ms365Client:
     def auth_status(self):
         """Auth Status"""
         return self._get_json(f"/auth/status")
+    # ------------------------------------------------------------------
+    # Contacts
+    # ------------------------------------------------------------------
+
+    def list_contacts(self, top=100, skip=0, search=None):
+        """List Contacts"""
+        params = {k: v for k, v in {"top": top, "skip": skip, "search": search}.items() if v is not None}
+        return self._get_json(f"/contacts/", params)
+
+    def create_contact(
+            self,
+            name,
+            email=None,
+            phone=None,
+            organization=None,
+            title=None,
+            notes=None,
+    ):
+        """Create Contact"""
+        data = {}
+        data["name"] = name
+        if email is not None:
+            data["email"] = email
+        if phone is not None:
+            data["phone"] = phone
+        if organization is not None:
+            data["organization"] = organization
+        if title is not None:
+            data["title"] = title
+        if notes is not None:
+            data["notes"] = notes
+        return self._post_json(f"/contacts/", data)
+
+    def search_by_email(self, email):
+        """Search By Email"""
+        return self._get_json(f"/contacts/by-email/{email}")
+
+    def delete_contact(self, contact_id):
+        """Delete Contact"""
+        return self._delete_json(f"/contacts/{contact_id}")
+
+    def get_contact(self, contact_id):
+        """Get Contact"""
+        return self._get_json(f"/contacts/{contact_id}")
+
+    def update_contact(
+            self,
+            contact_id,
+            name=None,
+            email=None,
+            phone=None,
+            organization=None,
+            title=None,
+            notes=None,
+    ):
+        """Update Contact"""
+        data = {}
+        if name is not None:
+            data["name"] = name
+        if email is not None:
+            data["email"] = email
+        if phone is not None:
+            data["phone"] = phone
+        if organization is not None:
+            data["organization"] = organization
+        if title is not None:
+            data["title"] = title
+        if notes is not None:
+            data["notes"] = notes
+        return self._patch_json(f"/contacts/{contact_id}", data)
+    # ------------------------------------------------------------------
+    # Powerbi
+    # ------------------------------------------------------------------
+
+    def list_workspaces(self):
+        """List Workspaces"""
+        return self._get_json(f"/powerbi/workspaces")
+
+    def list_datasets(self, workspace_id):
+        """List Datasets"""
+        return self._get_json(f"/powerbi/workspaces/{workspace_id}/datasets")
+
+    def execute_query(self, workspace_id, dataset_id, dax_query):
+        """Execute Query"""
+        data = {}
+        data["dax_query"] = dax_query
+        return self._post_json(f"/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/query", data)
+
+    def list_refreshes(self, workspace_id, dataset_id, top=10):
+        """List Refreshes"""
+        params = {k: v for k, v in {"top": top}.items() if v is not None}
+        return self._get_json(f"/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes", params)
+
+    def trigger_refresh(self, workspace_id, dataset_id):
+        """Trigger Refresh"""
+        return self._post_json(f"/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes")
+
+    def powerbi_list_tables(self, workspace_id, dataset_id):
+        """List Tables"""
+        return self._get_json(f"/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/tables")
+
+    def list_reports(self, workspace_id):
+        """List Reports"""
+        return self._get_json(f"/powerbi/workspaces/{workspace_id}/reports")
+    # ------------------------------------------------------------------
+    # Workbook
+    # ------------------------------------------------------------------
+
+    def lock_state(self, item_id, site_id=None):
+        """Lock State"""
+        params = {k: v for k, v in {"site_id": site_id}.items() if v is not None}
+        return self._get_json(f"/workbook/items/{item_id}/lock-state", params)
+
+    def get_range(self, item_id, sheet, address, site_id=None, session_id=None):
+        """Get Range"""
+        params = {k: v for k, v in {"sheet": sheet, "address": address, "site_id": site_id, "session_id": session_id}.items() if v is not None}
+        return self._get_json(f"/workbook/items/{item_id}/range", params)
+
+    def update_range(
+            self,
+            item_id,
+            data=None,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Update Range"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._patch_json(f"/workbook/items/{item_id}/range", data, params)
+
+    def close_session(self, item_id, session_id, site_id=None):
+        """Close Session"""
+        params = {k: v for k, v in {"session_id": session_id, "site_id": site_id}.items() if v is not None}
+        return self._delete_json(f"/workbook/items/{item_id}/session", params)
+
+    def create_session(self, item_id, site_id=None, persist=True):
+        """Create Session"""
+        params = {k: v for k, v in {"site_id": site_id, "persist": persist}.items() if v is not None}
+        return self._post_json(f"/workbook/items/{item_id}/session", params=params)
+
+    def workbook_list_tables(self, item_id, site_id=None, session_id=None):
+        """List Tables"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id}.items() if v is not None}
+        return self._get_json(f"/workbook/items/{item_id}/tables", params)
+
+    def add_table_row(
+            self,
+            item_id,
+            table,
+            data=None,
+            site_id=None,
+            session_id=None,
+            auto_session=True,
+    ):
+        """Add Table Row"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id, "auto_session": auto_session}.items() if v is not None}
+        return self._post_json(f"/workbook/items/{item_id}/tables/{table}/rows", data, params)
+
+    def list_worksheets(self, item_id, site_id=None, session_id=None):
+        """List Worksheets"""
+        params = {k: v for k, v in {"site_id": site_id, "session_id": session_id}.items() if v is not None}
+        return self._get_json(f"/workbook/items/{item_id}/worksheets", params)

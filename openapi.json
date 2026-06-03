@@ -13,12 +13,34 @@
         ],
         "summary": "Login",
         "operationId": "login_auth_login_get",
+        "parameters": [
+          {
+            "name": "force_consent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Force Consent"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -112,6 +134,31 @@
         ],
         "summary": "List Folders",
         "operationId": "list_folders_mail_folders_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -120,13 +167,18 @@
                 "schema": {}
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/mail/folders/resolve/{name}": {
@@ -151,6 +203,24 @@
               "type": "string",
               "title": "Name"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to."
           }
         ],
         "responses": {
@@ -288,6 +358,36 @@
               "default": "receivedDateTime desc",
               "title": "Order By"
             }
+          },
+          {
+            "name": "include_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include truncated plain-text body (~2000 chars)",
+              "default": false,
+              "title": "Include Body"
+            },
+            "description": "Include truncated plain-text body (~2000 chars)"
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN (e.g. caroline@revivalgourmet.com) of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN (e.g. caroline@revivalgourmet.com) of a shared mailbox you have Full Access to. Default: your own mailbox."
           }
         ],
         "responses": {
@@ -320,6 +420,26 @@
         "security": [
           {
             "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Send-As/Send-on-Behalf rights to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Send-As/Send-on-Behalf rights to. Default: your own mailbox."
           }
         ],
         "requestBody": {
@@ -375,6 +495,24 @@
               "type": "string",
               "title": "Message Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to."
           }
         ],
         "responses": {
@@ -418,6 +556,24 @@
               "type": "string",
               "title": "Message Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
           }
         ],
         "requestBody": {
@@ -471,6 +627,24 @@
               "type": "string",
               "title": "Message Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
           }
         ],
         "responses": {
@@ -503,15 +677,40 @@
         "summary": "Create Draft",
         "description": "Create a new draft message in Drafts folder (does not send).\n\nRequires write:draft permission. To send the draft later, use\nPOST /mail/messages/{draft_id}/send (requires write:mail).",
         "operationId": "create_draft_mail_drafts_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateDraftRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -532,12 +731,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/mail/messages/{message_id}/send": {
@@ -562,6 +756,24 @@
               "type": "string",
               "title": "Message Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
           }
         ],
         "responses": {
@@ -620,8 +832,43 @@
               "title": "Reply All"
             },
             "description": "Create reply-all draft instead of reply"
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DraftReplyRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -665,6 +912,24 @@
               "type": "string",
               "title": "Message Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
           }
         ],
         "requestBody": {
@@ -720,6 +985,24 @@
               "type": "string",
               "title": "Message Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
           }
         ],
         "requestBody": {
@@ -788,6 +1071,24 @@
               "title": "Verify"
             },
             "description": "Verify the move by checking parentFolderId after"
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
           }
         ],
         "requestBody": {
@@ -829,15 +1130,40 @@
         ],
         "summary": "Batch Move Messages",
         "operationId": "batch_move_messages_mail_batch_move_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BatchMoveRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -858,12 +1184,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/mail/batch/delete": {
@@ -873,15 +1194,40 @@
         ],
         "summary": "Batch Delete Messages",
         "operationId": "batch_delete_messages_mail_batch_delete_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BatchDeleteRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -902,12 +1248,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/mail/search": {
@@ -944,15 +1285,22 @@
             }
           },
           {
-            "name": "skip",
+            "name": "user",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Skip"
-            }
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to."
           }
         ],
         "responses": {
@@ -1037,6 +1385,24 @@
               "default": 25,
               "title": "Top"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to."
           }
         ],
         "responses": {
@@ -1083,10 +1449,100 @@
               "type": "string",
               "title": "Message Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to."
           }
         ],
         "responses": {
           "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "mail"
+        ],
+        "summary": "Add Attachment",
+        "description": "Add a file attachment to a message or draft.\n\nAccepts base64-encoded file content. Maximum size ~3MB\n(MS Graph limit for single-request attachments).\n\nRequires write:draft permission.",
+        "operationId": "add_attachment_mail_messages__message_id__attachments_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAttachmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -1138,6 +1594,24 @@
               "type": "string",
               "title": "Attachment Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to."
           }
         ],
         "responses": {
@@ -1169,6 +1643,31 @@
         ],
         "summary": "List Calendars",
         "operationId": "list_calendars_calendar_calendars_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose calendar you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose calendar you have Full Access to."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1177,13 +1676,18 @@
                 "schema": {}
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/calendar/events": {
@@ -1263,6 +1767,24 @@
               ],
               "title": "Filter"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose calendar you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose calendar you have Full Access to."
           }
         ],
         "responses": {
@@ -1407,6 +1929,24 @@
               "default": 100,
               "title": "Top"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose calendar you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose calendar you have Full Access to."
           }
         ],
         "responses": {
@@ -1452,6 +1992,24 @@
               "type": "string",
               "title": "Event Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose calendar you have Full Access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose calendar you have Full Access to."
           }
         ],
         "responses": {
@@ -1734,13 +2292,59 @@
         }
       }
     },
-    "/files/drives": {
+    "/contacts/": {
       "get": {
         "tags": [
-          "files"
+          "contacts"
         ],
-        "summary": "List Drives",
-        "operationId": "list_drives_files_drives_get",
+        "summary": "List Contacts",
+        "operationId": "list_contacts_contacts__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "top",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Top"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1749,13 +2353,300 @@
                 "schema": {}
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
+        }
+      },
+      "post": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Create Contact",
+        "operationId": "create_contact_contacts__post",
         "security": [
           {
             "HTTPBearer": []
           }
-        ]
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/by-email/{email}": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Search By Email",
+        "operationId": "search_by_email_contacts_by_email__email__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Email"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contacts/{contact_id}": {
+      "get": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Get Contact",
+        "operationId": "get_contact_contacts__contact_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Contact Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Update Contact",
+        "operationId": "update_contact_contacts__contact_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Contact Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContactRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "contacts"
+        ],
+        "summary": "Delete Contact",
+        "operationId": "delete_contact_contacts__contact_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Contact Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/drives": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "List Drives",
+        "operationId": "list_drives_files_drives_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user (e.g. caroline@revivalgourmet.com) whose drives you have access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user (e.g. caroline@revivalgourmet.com) whose drives you have access to."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/files/drive/root": {
@@ -1786,6 +2677,24 @@
               ],
               "title": "Drive Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose default OneDrive root you have access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose default OneDrive root you have access to."
           }
         ],
         "responses": {
@@ -1847,6 +2756,24 @@
               ],
               "title": "Drive Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose OneDrive item you have access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose OneDrive item you have access to."
           }
         ],
         "responses": {
@@ -2069,6 +2996,24 @@
               "default": "name",
               "title": "Order By"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose OneDrive folder you have access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose OneDrive folder you have access to."
           }
         ],
         "responses": {
@@ -2130,8 +3075,96 @@
               ],
               "title": "Drive Id"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose OneDrive file you have access to.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose OneDrive file you have access to."
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Replace Content",
+        "description": "Replace the content of an existing file (keeps the same item ID).\n\nOneDrive/SharePoint preserves version history, so the previous content\nis still accessible via the file's version history.",
+        "operationId": "replace_content_files_items__item_id__content_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "drive_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Drive Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_replace_content_files_items__item_id__content_put"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2354,6 +3387,24 @@
               "default": 25,
               "title": "Top"
             }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of another user whose OneDrive you have access to. Default: your own OneDrive.",
+              "title": "User"
+            },
+            "description": "UPN of another user whose OneDrive you have access to. Default: your own OneDrive."
           }
         ],
         "responses": {
@@ -2479,12 +3530,12 @@
             }
           },
           {
-            "name": "drive_id",
+            "name": "site_id",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Drive Id"
+              "title": "Site Id"
             }
           },
           {
@@ -2551,12 +3602,12 @@
             }
           },
           {
-            "name": "drive_id",
+            "name": "site_id",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Drive Id"
+              "title": "Site Id"
             }
           },
           {
@@ -2576,6 +3627,133 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "sharepoint"
+        ],
+        "summary": "Replace Content",
+        "description": "Replace the content of an existing file in SharePoint (keeps the same item ID).\n\nSharePoint preserves version history, so the previous content is still\naccessible via the file's version history.",
+        "operationId": "replace_content_sharepoint_items__item_id__content_put",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Site Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_replace_content_sharepoint_items__item_id__content_put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharepoint/items/{parent_id}:/{filename}:/content": {
+      "put": {
+        "tags": [
+          "sharepoint"
+        ],
+        "summary": "Upload Content",
+        "description": "Upload a file to a SharePoint site's default drive.\n\nUses /sites/{site_id}/drive path to avoid b!-prefixed drive IDs.",
+        "operationId": "upload_content_sharepoint_items__parent_id____filename___content_put",
+        "parameters": [
+          {
+            "name": "parent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Parent Id"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Site Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_content_sharepoint_items__parent_id____filename___content_put"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2617,15 +3795,258 @@
             }
           },
           {
-            "name": "drive_id",
+            "name": "site_id",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Drive Id"
+              "title": "Site Id"
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "sharepoint"
+        ],
+        "summary": "Rename Item",
+        "description": "Rename a file or folder in a SharePoint drive.",
+        "operationId": "rename_item_sharepoint_items__item_id__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Site Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharepoint/items/{item_id}/versions": {
+      "get": {
+        "tags": [
+          "sharepoint"
+        ],
+        "summary": "List Versions",
+        "description": "List version history for a file in a SharePoint drive.",
+        "operationId": "list_versions_sharepoint_items__item_id__versions_get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Site Id"
+            }
+          },
+          {
+            "name": "top",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Top"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharepoint/items/{item_id}/versions/{version_id}/content": {
+      "get": {
+        "tags": [
+          "sharepoint"
+        ],
+        "summary": "Download Version",
+        "description": "Download a specific historical version of a SharePoint file.",
+        "operationId": "download_version_sharepoint_items__item_id__versions__version_id__content_get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Site Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharepoint/items/{item_id}/move": {
+      "patch": {
+        "tags": [
+          "sharepoint"
+        ],
+        "summary": "Move Item",
+        "description": "Move a file or folder to a different folder in a SharePoint drive.",
+        "operationId": "move_item_sharepoint_items__item_id__move_patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Site Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2654,7 +4075,7 @@
           "sharepoint"
         ],
         "summary": "Search",
-        "description": "Search within a SharePoint drive.",
+        "description": "Search within a SharePoint site's default drive.",
         "operationId": "search_sharepoint_search_get",
         "parameters": [
           {
@@ -2667,12 +4088,12 @@
             }
           },
           {
-            "name": "drive_id",
+            "name": "site_id",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Drive Id"
+              "title": "Site Id"
             }
           },
           {
@@ -2716,7 +4137,7 @@
           "sharepoint"
         ],
         "summary": "Resolve Url",
-        "description": "Resolve a SharePoint sharing URL to item metadata + drive_id + item_id.",
+        "description": "Resolve a SharePoint sharing URL to item metadata + site_id + item_id.",
         "operationId": "resolve_url_sharepoint_resolve_get",
         "parameters": [
           {
@@ -2727,6 +4148,1027 @@
               "type": "string",
               "title": "Url"
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workbook/items/{item_id}/lock-state": {
+      "get": {
+        "tags": [
+          "workbook"
+        ],
+        "summary": "Lock State",
+        "description": "Report whether the file is checked out (co-authoring is not a checkout).",
+        "operationId": "lock_state_workbook_items__item_id__lock_state_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workbook/items/{item_id}/session": {
+      "post": {
+        "tags": [
+          "workbook"
+        ],
+        "summary": "Create Session",
+        "description": "Create a workbook session. Use the returned id for subsequent calls.",
+        "operationId": "create_session_workbook_items__item_id__session_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "name": "persist",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Persist"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "workbook"
+        ],
+        "summary": "Close Session",
+        "description": "Close a workbook session.",
+        "operationId": "close_session_workbook_items__item_id__session_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workbook/items/{item_id}/worksheets": {
+      "get": {
+        "tags": [
+          "workbook"
+        ],
+        "summary": "List Worksheets",
+        "description": "List worksheets in the workbook.",
+        "operationId": "list_worksheets_workbook_items__item_id__worksheets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workbook/items/{item_id}/tables": {
+      "get": {
+        "tags": [
+          "workbook"
+        ],
+        "summary": "List Tables",
+        "description": "List tables in the workbook.",
+        "operationId": "list_tables_workbook_items__item_id__tables_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workbook/items/{item_id}/range": {
+      "get": {
+        "tags": [
+          "workbook"
+        ],
+        "summary": "Get Range",
+        "description": "Read a cell range, e.g. sheet='Sheet1' address='A1:C10'.",
+        "operationId": "get_range_workbook_items__item_id__range_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "sheet",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sheet"
+            }
+          },
+          {
+            "name": "address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Address"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "workbook"
+        ],
+        "summary": "Update Range",
+        "description": "Write a 2D array of values into a range.\n\nBody: {\"sheet\": \"Sheet1\", \"address\": \"A1:B2\", \"values\": [[\"x\", 1], [\"y\", 2]]}\n\nWith no session_id and auto_session=True (default), the server opens and\ncloses a persistent session around the write for a clean one-call edit.",
+        "operationId": "update_range_workbook_items__item_id__range_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "auto_session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Auto Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workbook/items/{item_id}/tables/{table}/rows": {
+      "post": {
+        "tags": [
+          "workbook"
+        ],
+        "summary": "Add Table Row",
+        "description": "Append rows to a table. Body: {\"values\": [[\"east\", \"pear\", 4]]}.\n\nAuto-sessions around the write when no session_id is given (see update_range).",
+        "operationId": "add_table_row_workbook_items__item_id__tables__table__rows_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "table",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Table"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "auto_session",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Auto Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/powerbi/workspaces": {
+      "get": {
+        "tags": [
+          "powerbi"
+        ],
+        "summary": "List Workspaces",
+        "description": "List all Power BI workspaces the user has access to.",
+        "operationId": "list_workspaces_powerbi_workspaces_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/powerbi/workspaces/{workspace_id}/datasets": {
+      "get": {
+        "tags": [
+          "powerbi"
+        ],
+        "summary": "List Datasets",
+        "description": "List datasets in a workspace.",
+        "operationId": "list_datasets_powerbi_workspaces__workspace_id__datasets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/tables": {
+      "get": {
+        "tags": [
+          "powerbi"
+        ],
+        "summary": "List Tables",
+        "description": "List tables in a dataset. Falls back to DAX INFO.TABLES() for standard datasets.",
+        "operationId": "list_tables_powerbi_workspaces__workspace_id__datasets__dataset_id__tables_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/query": {
+      "post": {
+        "tags": [
+          "powerbi"
+        ],
+        "summary": "Execute Query",
+        "description": "Execute a DAX query against a dataset.\n\nRequires Power BI Premium or Premium Per User capacity.\nReturns columns and rows from the first result table.",
+        "operationId": "execute_query_powerbi_workspaces__workspace_id__datasets__dataset_id__query_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_execute_query_powerbi_workspaces__workspace_id__datasets__dataset_id__query_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/powerbi/workspaces/{workspace_id}/reports": {
+      "get": {
+        "tags": [
+          "powerbi"
+        ],
+        "summary": "List Reports",
+        "description": "List reports in a workspace.",
+        "operationId": "list_reports_powerbi_workspaces__workspace_id__reports_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes": {
+      "post": {
+        "tags": [
+          "powerbi"
+        ],
+        "summary": "Trigger Refresh",
+        "description": "Trigger a dataset refresh. Returns immediately \u2014 poll GET .../refreshes for status.\n\nPower BI Pro: 8 refreshes/day max. Premium: 48/day.",
+        "operationId": "trigger_refresh_powerbi_workspaces__workspace_id__datasets__dataset_id__refreshes_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "powerbi"
+        ],
+        "summary": "List Refreshes",
+        "description": "List recent dataset refresh history (status, start/end time, type).\n\nUse after triggering a refresh to check if it completed or failed.",
+        "operationId": "list_refreshes_powerbi_workspaces__workspace_id__datasets__dataset_id__refreshes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "top",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of recent refreshes to return",
+              "default": 10,
+              "title": "Top"
+            },
+            "description": "Number of recent refreshes to return"
           }
         ],
         "responses": {
@@ -2964,6 +5406,29 @@
   },
   "components": {
     "schemas": {
+      "AddAttachmentRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "content_bytes": {
+            "type": "string",
+            "title": "Content Bytes"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "default": "application/octet-stream"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "content_bytes"
+        ],
+        "title": "AddAttachmentRequest"
+      },
       "ApiKeyCreate": {
         "properties": {
           "name": {
@@ -3237,6 +5702,48 @@
         ],
         "title": "BatchMoveRequest"
       },
+      "Body_execute_query_powerbi_workspaces__workspace_id__datasets__dataset_id__query_post": {
+        "properties": {
+          "dax_query": {
+            "type": "string",
+            "title": "Dax Query",
+            "description": "DAX query string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dax_query"
+        ],
+        "title": "Body_execute_query_powerbi_workspaces__workspace_id__datasets__dataset_id__query_post"
+      },
+      "Body_replace_content_files_items__item_id__content_put": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_replace_content_files_items__item_id__content_put"
+      },
+      "Body_replace_content_sharepoint_items__item_id__content_put": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_replace_content_sharepoint_items__item_id__content_put"
+      },
       "Body_upload_content_files_items__parent_id____filename___content_put": {
         "properties": {
           "file": {
@@ -3250,6 +5757,88 @@
           "file"
         ],
         "title": "Body_upload_content_files_items__parent_id____filename___content_put"
+      },
+      "Body_upload_content_sharepoint_items__parent_id____filename___content_put": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_content_sharepoint_items__parent_id____filename___content_put"
+      },
+      "CreateContactRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateContactRequest"
       },
       "CreateDraftRequest": {
         "properties": {
@@ -3417,6 +6006,17 @@
           "name"
         ],
         "title": "CreateFolderRequest"
+      },
+      "DraftReplyRequest": {
+        "properties": {
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "DraftReplyRequest"
       },
       "ForwardMailRequest": {
         "properties": {
@@ -3589,6 +6189,78 @@
           "to_recipients"
         ],
         "title": "SendMailRequest"
+      },
+      "UpdateContactRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "UpdateContactRequest"
       },
       "UpdateEventRequest": {
         "properties": {
@@ -3791,6 +6463,41 @@
               }
             ],
             "title": "Body Type"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "to_recipients": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Recipients"
+          },
+          "cc_recipients": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cc Recipients"
           }
         },
         "type": "object",
