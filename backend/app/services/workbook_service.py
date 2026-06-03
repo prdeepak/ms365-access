@@ -228,6 +228,34 @@ class WorkbookService:
             except Exception as e:  # best-effort; the write already landed
                 logger.warning("Failed to close auto-session %s: %s", session_id, e)
 
+    async def _session_write(
+        self,
+        item_id: str,
+        site_id: Optional[str],
+        session_id: Optional[str],
+        auto_session: bool,
+        check_lock: bool,
+        action,
+    ):
+        """Run a write `action(effective_session_id)` inside an (optional) session.
+
+        `action` is an async callable taking the effective session id and
+        returning the Graph response. Centralises the create -> write -> close
+        in/out used by every co-authoring-safe write, with lock-error
+        translation. When the caller passes no session and `auto_session` is on,
+        a short-lived persistent session is opened and closed around the write.
+        """
+        session_id, own = await self._auto_session(
+            item_id, site_id, session_id, auto_session, check_lock
+        )
+        try:
+            return await action(session_id)
+        except httpx.HTTPStatusError as e:
+            self._raise_if_locked(e)
+            raise
+        finally:
+            await self._close_own(item_id, site_id, session_id, own)
+
     async def update_range(
         self,
         item_id: str,
@@ -249,25 +277,22 @@ class WorkbookService:
         short-lived persistent session is opened and closed around the write —
         the caller just makes one call.
         """
-        session_id, own = await self._auto_session(
-            item_id, site_id, session_id, auto_session, check_lock
-        )
         addr = quote(address, safe=":!$")
         endpoint = (
             f"{self._base(item_id, site_id)}"
             f"/worksheets('{self._sheet_ref(sheet)}')/range(address='{addr}')"
         )
-        try:
+
+        async def action(sid):
             return await self.client.patch(
                 endpoint,
                 data={"values": values},
-                extra_headers=self._session_header(session_id),
+                extra_headers=self._session_header(sid),
             )
-        except httpx.HTTPStatusError as e:
-            self._raise_if_locked(e)
-            raise
-        finally:
-            await self._close_own(item_id, site_id, session_id, own)
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
 
     async def add_table_row(
         self,
@@ -284,23 +309,262 @@ class WorkbookService:
         `table` is the table name or id; `values` is a list of rows, e.g.
         [["east", "pear", 4]]. Auto-session behaves as in `update_range`.
         """
-        session_id, own = await self._auto_session(
-            item_id, site_id, session_id, auto_session, check_lock
-        )
         endpoint = (
             f"{self._base(item_id, site_id)}/tables/{quote(table, safe='')}/rows/add"
         )
-        try:
+
+        async def action(sid):
             return await self.client.post(
                 endpoint,
                 data={"values": values},
-                extra_headers=self._session_header(session_id),
+                extra_headers=self._session_header(sid),
             )
-        except httpx.HTTPStatusError as e:
-            self._raise_if_locked(e)
-            raise
-        finally:
-            await self._close_own(item_id, site_id, session_id, own)
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
+
+    # -- Worksheet management ----------------------------------------------
+
+    async def get_worksheet(
+        self,
+        item_id: str,
+        sheet: str,
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> dict:
+        """Read a single worksheet's metadata (id, name, position, visibility)."""
+        endpoint = (
+            f"{self._base(item_id, site_id)}/worksheets('{self._sheet_ref(sheet)}')"
+        )
+        return await self.client.get(
+            endpoint, extra_headers=self._session_header(session_id)
+        )
+
+    async def get_used_range(
+        self,
+        item_id: str,
+        sheet: str,
+        values_only: bool = False,
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> dict:
+        """Read the worksheet's used range (the smallest range covering all data).
+
+        With `values_only=True`, formatting-only cells are excluded so the
+        range is bounded by cells that actually hold values.
+        """
+        seg = "usedRange(valuesOnly=true)" if values_only else "usedRange"
+        endpoint = (
+            f"{self._base(item_id, site_id)}"
+            f"/worksheets('{self._sheet_ref(sheet)}')/{seg}"
+        )
+        return await self.client.get(
+            endpoint, extra_headers=self._session_header(session_id)
+        )
+
+    async def add_worksheet(
+        self,
+        item_id: str,
+        name: Optional[str] = None,
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        auto_session: bool = True,
+        check_lock: bool = True,
+    ) -> dict:
+        """Add a new worksheet. Graph picks a default name if `name` is omitted."""
+        endpoint = f"{self._base(item_id, site_id)}/worksheets/add"
+        body = {"name": name} if name else {}
+
+        async def action(sid):
+            return await self.client.post(
+                endpoint, data=body, extra_headers=self._session_header(sid)
+            )
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
+
+    async def delete_worksheet(
+        self,
+        item_id: str,
+        sheet: str,
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        auto_session: bool = True,
+        check_lock: bool = True,
+    ) -> dict:
+        """Delete a worksheet by name or id."""
+        endpoint = (
+            f"{self._base(item_id, site_id)}/worksheets('{self._sheet_ref(sheet)}')"
+        )
+
+        async def action(sid):
+            await self.client.delete(
+                endpoint, extra_headers=self._session_header(sid)
+            )
+            return {"deleted": True, "sheet": sheet}
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
+
+    async def update_worksheet(
+        self,
+        item_id: str,
+        sheet: str,
+        name: Optional[str] = None,
+        position: Optional[int] = None,
+        visibility: Optional[str] = None,
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        auto_session: bool = True,
+        check_lock: bool = True,
+    ) -> dict:
+        """Update a worksheet's properties in one PATCH.
+
+        Any of `name` (rename), `position` (0-based reorder), or `visibility`
+        ('Visible' | 'Hidden' | 'VeryHidden') may be set; omitted properties are
+        left unchanged.
+        """
+        endpoint = (
+            f"{self._base(item_id, site_id)}/worksheets('{self._sheet_ref(sheet)}')"
+        )
+        body: dict = {}
+        if name is not None:
+            body["name"] = name
+        if position is not None:
+            body["position"] = position
+        if visibility is not None:
+            body["visibility"] = visibility
+
+        async def action(sid):
+            return await self.client.patch(
+                endpoint, data=body, extra_headers=self._session_header(sid)
+            )
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
+
+    async def copy_worksheet(
+        self,
+        item_id: str,
+        sheet: str,
+        name: Optional[str] = None,
+        position_type: Optional[str] = None,
+        relative_to: Optional[str] = None,
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        auto_session: bool = True,
+        check_lock: bool = True,
+    ) -> dict:
+        """Copy a worksheet, returning the new sheet.
+
+        `position_type` is one of 'None' | 'Before' | 'After' | 'Beginning' |
+        'End'; `relative_to` names the anchor sheet for 'Before'/'After'.
+        """
+        endpoint = (
+            f"{self._base(item_id, site_id)}"
+            f"/worksheets('{self._sheet_ref(sheet)}')/copy"
+        )
+        body: dict = {}
+        if name:
+            body["name"] = name
+        if position_type:
+            body["positionType"] = position_type
+        if relative_to:
+            body["relativeTo"] = relative_to
+
+        async def action(sid):
+            return await self.client.post(
+                endpoint, data=body, extra_headers=self._session_header(sid)
+            )
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
+
+    async def protect_worksheet(
+        self,
+        item_id: str,
+        sheet: str,
+        options: Optional[dict] = None,
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        auto_session: bool = True,
+        check_lock: bool = True,
+    ) -> dict:
+        """Protect a worksheet. `options` is an optional WorksheetProtectionOptions
+        object (e.g. {"allowFormatCells": true}); omit for default protection."""
+        endpoint = (
+            f"{self._base(item_id, site_id)}"
+            f"/worksheets('{self._sheet_ref(sheet)}')/protection/protect"
+        )
+        body = {"options": options} if options else {}
+
+        async def action(sid):
+            return await self.client.post(
+                endpoint, data=body, extra_headers=self._session_header(sid)
+            )
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
+
+    async def unprotect_worksheet(
+        self,
+        item_id: str,
+        sheet: str,
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        auto_session: bool = True,
+        check_lock: bool = True,
+    ) -> dict:
+        """Remove protection from a worksheet."""
+        endpoint = (
+            f"{self._base(item_id, site_id)}"
+            f"/worksheets('{self._sheet_ref(sheet)}')/protection/unprotect"
+        )
+
+        async def action(sid):
+            return await self.client.post(
+                endpoint, data={}, extra_headers=self._session_header(sid)
+            )
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
+
+    async def clear_range(
+        self,
+        item_id: str,
+        sheet: str,
+        address: str,
+        apply_to: str = "All",
+        site_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        auto_session: bool = True,
+        check_lock: bool = True,
+    ) -> dict:
+        """Clear a cell range. `apply_to` is 'All' | 'Formats' | 'Contents'."""
+        addr = quote(address, safe=":!$")
+        endpoint = (
+            f"{self._base(item_id, site_id)}"
+            f"/worksheets('{self._sheet_ref(sheet)}')/range(address='{addr}')/clear"
+        )
+
+        async def action(sid):
+            await self.client.post(
+                endpoint,
+                data={"applyTo": apply_to},
+                extra_headers=self._session_header(sid),
+            )
+            return {"cleared": True, "sheet": sheet, "address": address, "applyTo": apply_to}
+
+        return await self._session_write(
+            item_id, site_id, session_id, auto_session, check_lock, action
+        )
 
     # -- Error mapping -----------------------------------------------------
 

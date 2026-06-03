@@ -1327,6 +1327,293 @@ def workbook_add_table_row(
     )
 
 
+@mcp.tool()
+def workbook_get_worksheet(item_id: str, sheet: str, site_id: str = "", session_id: str = "") -> str:
+    """Get a single worksheet's metadata (id, name, position, visibility).
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name or id
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"sheet": sheet, "site_id": site_id or None, "session_id": session_id or None}
+    return json.dumps(_get(f"/workbook/items/{item_id}/worksheet", params), default=str)
+
+
+@mcp.tool()
+def workbook_get_used_range(
+    item_id: str,
+    sheet: str,
+    values_only: bool = False,
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Get the used range of a worksheet (smallest range covering all data).
+
+    Handy before reading/clearing to learn the extent of the data without
+    guessing an address.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name, e.g. 'Sheet1'
+        values_only: Exclude formatting-only cells, bounding to cells with values
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {
+        "sheet": sheet,
+        "values_only": values_only,
+        "site_id": site_id or None,
+        "session_id": session_id or None,
+    }
+    return json.dumps(_get(f"/workbook/items/{item_id}/used-range", params), default=str)
+
+
+@mcp.tool()
+def workbook_add_worksheet(item_id: str, name: str = "", site_id: str = "", session_id: str = "") -> str:
+    """Add a new worksheet (tab) to a live Excel workbook.
+
+    Co-authoring-safe. With no session_id the server opens/closes a session for
+    you. Returns the new worksheet (including its assigned name and position).
+
+    Args:
+        item_id: Excel file item ID
+        name: Name for the new worksheet; if omitted, Excel assigns a default
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional; pass one from workbook_create_session for batches
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body = {"name": name} if name else {}
+    return json.dumps(
+        _post(f"/workbook/items/{item_id}/worksheets", data=body, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def workbook_delete_worksheet(item_id: str, sheet: str, site_id: str = "", session_id: str = "") -> str:
+    """Delete a worksheet (tab) from a live Excel workbook.
+
+    Co-authoring-safe. Deleting the only/last visible sheet will fail per Excel
+    rules. With no session_id the server opens/closes a session for you.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name or id (from workbook_list_worksheets)
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    from urllib.parse import quote
+    qs = f"sheet={quote(sheet)}"
+    if site_id:
+        qs += f"&site_id={site_id}"
+    if session_id:
+        qs += f"&session_id={session_id}"
+    return json.dumps(_delete(f"/workbook/items/{item_id}/worksheet?{qs}"), default=str)
+
+
+@mcp.tool()
+def workbook_rename_worksheet(
+    item_id: str,
+    sheet: str,
+    new_name: str,
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Rename a worksheet in a live Excel workbook.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Current worksheet name or id
+        new_name: New worksheet name
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body = {"sheet": sheet, "name": new_name}
+    return json.dumps(
+        _patch(f"/workbook/items/{item_id}/worksheet", data=body, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def workbook_reorder_worksheet(
+    item_id: str,
+    sheet: str,
+    position: int,
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Move a worksheet to a new tab position in a live Excel workbook.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name or id
+        position: 0-based target position (0 = first tab)
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body = {"sheet": sheet, "position": position}
+    return json.dumps(
+        _patch(f"/workbook/items/{item_id}/worksheet", data=body, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def workbook_update_worksheet(
+    item_id: str,
+    sheet: str,
+    name: str = "",
+    position: int | None = None,
+    visibility: str = "",
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Update a worksheet's properties in one call (rename + reorder + show/hide).
+
+    Generic counterpart to workbook_rename_worksheet / workbook_reorder_worksheet;
+    use it to set visibility or change several properties at once. At least one
+    of name / position / visibility must be provided.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name or id
+        name: New name (omit to leave unchanged)
+        position: 0-based tab position (omit to leave unchanged)
+        visibility: 'Visible', 'Hidden', or 'VeryHidden' (omit to leave unchanged)
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body: dict = {"sheet": sheet}
+    if name:
+        body["name"] = name
+    if position is not None:
+        body["position"] = position
+    if visibility:
+        body["visibility"] = visibility
+    return json.dumps(
+        _patch(f"/workbook/items/{item_id}/worksheet", data=body, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def workbook_copy_worksheet(
+    item_id: str,
+    sheet: str,
+    name: str = "",
+    position_type: str = "",
+    relative_to: str = "",
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Copy (duplicate) a worksheet in a live Excel workbook; returns the new sheet.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name or id to copy
+        name: Name for the copy (omit for an Excel-assigned default)
+        position_type: 'None', 'Before', 'After', 'Beginning', or 'End'
+        relative_to: Anchor worksheet name/id for 'Before'/'After'
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body: dict = {"sheet": sheet}
+    if name:
+        body["name"] = name
+    if position_type:
+        body["position_type"] = position_type
+    if relative_to:
+        body["relative_to"] = relative_to
+    return json.dumps(
+        _post(f"/workbook/items/{item_id}/worksheet/copy", data=body, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def workbook_protect_worksheet(
+    item_id: str,
+    sheet: str,
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Protect a worksheet (lock it against edits) in a live Excel workbook.
+
+    Applies default protection. Use workbook_unprotect_worksheet to remove it.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name or id
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body = {"sheet": sheet}
+    return json.dumps(
+        _post(f"/workbook/items/{item_id}/worksheet/protect", data=body, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def workbook_unprotect_worksheet(
+    item_id: str,
+    sheet: str,
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Remove protection from a worksheet in a live Excel workbook.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name or id
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body = {"sheet": sheet}
+    return json.dumps(
+        _post(f"/workbook/items/{item_id}/worksheet/unprotect", data=body, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def workbook_clear_range(
+    item_id: str,
+    sheet: str,
+    address: str,
+    apply_to: str = "All",
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Clear cells in a range of a live Excel worksheet.
+
+    Co-authoring-safe. With no session_id the server opens/closes a session for you.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name, e.g. 'Sheet1'
+        address: Range in A1 notation, e.g. 'A1:C10'
+        apply_to: What to clear — 'All', 'Formats', or 'Contents' (default 'All')
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body = {"sheet": sheet, "address": address, "apply_to": apply_to}
+    return json.dumps(
+        _post(f"/workbook/items/{item_id}/range/clear", data=body, params=params),
+        default=str,
+    )
+
+
 # ===========================================================================
 # Contacts Tools
 # ===========================================================================

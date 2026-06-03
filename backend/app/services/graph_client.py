@@ -121,9 +121,11 @@ class GraphClient:
         response.raise_for_status()
         return response.json() if response.content else {}
 
-    async def delete(self, endpoint: str) -> None:
+    async def delete(self, endpoint: str, extra_headers: Optional[dict] = None) -> None:
         client = await self._get_client()
         headers = await self._get_headers()
+        if extra_headers:
+            headers.update(extra_headers)
         url = f"{self.base_url}{endpoint}"
         response = await client.delete(url, headers=headers)
         response.raise_for_status()
