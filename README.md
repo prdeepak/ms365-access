@@ -363,35 +363,36 @@ make down  # Stop
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/mail/batch/delete` | Batch Delete Messages |
-| POST | `/mail/batch/move` | Batch Move Messages |
-| POST | `/mail/drafts` | Create Draft |
-| GET | `/mail/folders` | List Folders |
-| GET | `/mail/folders/resolve/{name}` | Resolve Folder Name |
+| POST | `/mail/batch/delete?user=...` | Batch Delete Messages |
+| POST | `/mail/batch/move?user=...` | Batch Move Messages |
+| POST | `/mail/drafts?user=...` | Create Draft |
+| GET | `/mail/folders?user=...` | List Folders |
+| GET | `/mail/folders/resolve/{name}?user=...` | Resolve Folder Name |
 | GET | `/mail/messages?folder=...&folder_id=...&top=...&...` | List Messages |
-| POST | `/mail/messages` | Send Mail |
-| DELETE | `/mail/messages/{message_id}` | Delete Message |
-| GET | `/mail/messages/{message_id}` | Get Message |
-| PATCH | `/mail/messages/{message_id}` | Update Message |
-| GET | `/mail/messages/{message_id}/attachments` | List Attachments |
-| GET | `/mail/messages/{message_id}/attachments/{attachment_id}` | Download Attachment |
-| POST | `/mail/messages/{message_id}/draftReply?reply_all=...` | Create Reply Draft |
-| POST | `/mail/messages/{message_id}/forward` | Forward Message |
-| POST | `/mail/messages/{message_id}/move?verify=...` | Move Message |
-| POST | `/mail/messages/{message_id}/reply` | Reply To Message |
-| POST | `/mail/messages/{message_id}/send` | Send Draft |
-| GET | `/mail/search?q=...&top=...&skip=...` | Search Messages |
-| GET | `/mail/threads?folder=...&folder_id=...&top=...` | List Threads |
+| POST | `/mail/messages?user=...` | Send Mail |
+| DELETE | `/mail/messages/{message_id}?user=...` | Delete Message |
+| GET | `/mail/messages/{message_id}?user=...` | Get Message |
+| PATCH | `/mail/messages/{message_id}?user=...` | Update Message |
+| GET | `/mail/messages/{message_id}/attachments?user=...` | List Attachments |
+| POST | `/mail/messages/{message_id}/attachments?user=...` | Add Attachment |
+| GET | `/mail/messages/{message_id}/attachments/{attachment_id}?user=...` | Download Attachment |
+| POST | `/mail/messages/{message_id}/draftReply?reply_all=...&user=...` | Create Reply Draft |
+| POST | `/mail/messages/{message_id}/forward?user=...` | Forward Message |
+| POST | `/mail/messages/{message_id}/move?verify=...&user=...` | Move Message |
+| POST | `/mail/messages/{message_id}/reply?user=...` | Reply To Message |
+| POST | `/mail/messages/{message_id}/send?user=...` | Send Draft |
+| GET | `/mail/search?q=...&top=...&user=...` | Search Messages |
+| GET | `/mail/threads?folder=...&folder_id=...&top=...&...` | List Threads |
 
 ### Calendar
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/calendar/calendars` | List Calendars |
+| GET | `/calendar/calendars?user=...` | List Calendars |
 | GET | `/calendar/events?calendar_id=...&top=...&skip=...&...` | List Events |
 | POST | `/calendar/events?calendar_id=...` | Create Event |
 | DELETE | `/calendar/events/{event_id}` | Delete Event |
-| GET | `/calendar/events/{event_id}` | Get Event |
+| GET | `/calendar/events/{event_id}?user=...` | Get Event |
 | PATCH | `/calendar/events/{event_id}` | Update Event |
 | POST | `/calendar/events/{event_id}/accept` | Accept Event |
 | POST | `/calendar/events/{event_id}/decline` | Decline Event |
@@ -402,27 +403,34 @@ make down  # Stop
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/files/drive/root?drive_id=...` | Get Drive Root |
-| GET | `/files/drives` | List Drives |
+| GET | `/files/drive/root?drive_id=...&user=...` | Get Drive Root |
+| GET | `/files/drives?user=...` | List Drives |
 | DELETE | `/files/items/{item_id}?drive_id=...` | Delete Item |
-| GET | `/files/items/{item_id}?drive_id=...` | Get Item |
+| GET | `/files/items/{item_id}?drive_id=...&user=...` | Get Item |
 | PATCH | `/files/items/{item_id}?drive_id=...` | Update Item |
 | GET | `/files/items/{item_id}/children?drive_id=...&top=...&skip=...&...` | List Children |
-| GET | `/files/items/{item_id}/content?drive_id=...` | Download Content |
+| GET | `/files/items/{item_id}/content?drive_id=...&user=...` | Download Content |
+| PUT | `/files/items/{item_id}/content?drive_id=...` | Replace Content |
 | POST | `/files/items/{parent_id}/folder?drive_id=...` | Create Folder |
 | PUT | `/files/items/{parent_id}:/{filename}:/content?drive_id=...` | Upload Content |
-| GET | `/files/search?q=...&drive_id=...&top=...` | Search Files |
+| GET | `/files/search?q=...&drive_id=...&top=...&...` | Search Files |
 
 ### Sharepoint
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/sharepoint/drives?site_id=...` | List Drives |
-| GET | `/sharepoint/items/{item_id}?drive_id=...` | Get Item |
-| GET | `/sharepoint/items/{item_id}/children?drive_id=...&top=...&order_by=...` | List Children |
-| GET | `/sharepoint/items/{item_id}/content?drive_id=...&format=...` | Download Content |
+| GET | `/sharepoint/items/{item_id}?site_id=...` | Get Item |
+| PATCH | `/sharepoint/items/{item_id}?site_id=...` | Rename Item |
+| GET | `/sharepoint/items/{item_id}/children?site_id=...&top=...&order_by=...` | List Children |
+| GET | `/sharepoint/items/{item_id}/content?site_id=...&format=...` | Download Content |
+| PUT | `/sharepoint/items/{item_id}/content?site_id=...` | Replace Content |
+| PATCH | `/sharepoint/items/{item_id}/move?site_id=...` | Move Item |
+| GET | `/sharepoint/items/{item_id}/versions?site_id=...&top=...` | List Versions |
+| GET | `/sharepoint/items/{item_id}/versions/{version_id}/content?site_id=...` | Download Version |
+| PUT | `/sharepoint/items/{parent_id}:/{filename}:/content?site_id=...` | Upload Content |
 | GET | `/sharepoint/resolve?url=...` | Resolve Url |
-| GET | `/sharepoint/search?q=...&drive_id=...&top=...` | Search |
+| GET | `/sharepoint/search?q=...&site_id=...&top=...` | Search |
 | GET | `/sharepoint/sites/{host_path}` | Resolve Site |
 
 ### 
@@ -446,5 +454,41 @@ make down  # Stop
 |--------|----------|-------------|
 | POST | `/auth/logout` | Logout |
 | GET | `/auth/status` | Auth Status |
+
+### Contacts
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/contacts/?top=...&skip=...&search=...` | List Contacts |
+| POST | `/contacts/` | Create Contact |
+| GET | `/contacts/by-email/{email}` | Search By Email |
+| DELETE | `/contacts/{contact_id}` | Delete Contact |
+| GET | `/contacts/{contact_id}` | Get Contact |
+| PATCH | `/contacts/{contact_id}` | Update Contact |
+
+### Powerbi
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/powerbi/workspaces` | List Workspaces |
+| GET | `/powerbi/workspaces/{workspace_id}/datasets` | List Datasets |
+| POST | `/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/query` | Execute Query |
+| GET | `/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes?top=...` | List Refreshes |
+| POST | `/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/refreshes` | Trigger Refresh |
+| GET | `/powerbi/workspaces/{workspace_id}/datasets/{dataset_id}/tables` | List Tables |
+| GET | `/powerbi/workspaces/{workspace_id}/reports` | List Reports |
+
+### Workbook
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/workbook/items/{item_id}/lock-state?site_id=...` | Lock State |
+| GET | `/workbook/items/{item_id}/range?sheet=...&address=...&site_id=...&...` | Get Range |
+| PATCH | `/workbook/items/{item_id}/range?site_id=...&session_id=...&auto_session=...` | Update Range |
+| DELETE | `/workbook/items/{item_id}/session?session_id=...&site_id=...` | Close Session |
+| POST | `/workbook/items/{item_id}/session?site_id=...&persist=...` | Create Session |
+| GET | `/workbook/items/{item_id}/tables?site_id=...&session_id=...` | List Tables |
+| POST | `/workbook/items/{item_id}/tables/{table}/rows?site_id=...&session_id=...&auto_session=...` | Add Table Row |
+| GET | `/workbook/items/{item_id}/worksheets?site_id=...&session_id=...` | List Worksheets |
 
 <!-- GEN:API_END -->
