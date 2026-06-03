@@ -84,7 +84,17 @@ gen-client:
 check-client:
 	@python3 scripts/gen_client.py --check
 
-test: check-client
+# Suppressed: 3 starlette advisories that all require the starlette>=1.0 /
+# fastapi co-upgrade (tracked separately). Drop these once that upgrade lands.
+AUDIT_IGNORE = --ignore-vuln PYSEC-2026-161 --ignore-vuln CVE-2024-47874 --ignore-vuln CVE-2025-54121
+
+audit:
+	@echo "Auditing backend/requirements.lock (hash-pinned)..."
+	uvx pip-audit -r backend/requirements.lock $(AUDIT_IGNORE)
+	@echo "Auditing backend/requirements-mcp.lock (hash-pinned)..."
+	uvx pip-audit -r backend/requirements-mcp.lock
+
+test: check-client audit
 	@echo "All checks passed."
 
 status:

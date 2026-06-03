@@ -2,8 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY backend/requirements-mcp.txt .
-RUN pip install --no-cache-dir -r requirements-mcp.txt
+COPY backend/requirements-mcp.lock .
+RUN pip install --no-cache-dir --require-hashes -r requirements-mcp.lock
 
 COPY backend/mcp_server.py .
 

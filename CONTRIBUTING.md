@@ -16,11 +16,14 @@ Thank you for your interest in contributing to MS365-Access!
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
-3. **Install dependencies**
+3. **Install dependencies** (from the hash-pinned lock)
    ```bash
    cd backend
-   pip install -r requirements.txt
+   pip install --require-hashes -r requirements.lock
    ```
+   > `requirements.lock` is generated from `requirements.txt` with
+   > `uv pip compile requirements.txt --generate-hashes -o requirements.lock`.
+   > Regenerate it whenever you change `requirements.txt`.
 
 4. **Configure environment**
    ```bash

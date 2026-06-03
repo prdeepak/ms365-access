@@ -5,7 +5,7 @@ set -e
 cd /workspace/backend
 python -m venv .venv
 .venv/bin/pip install --upgrade pip
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install --require-hashes -r requirements.lock
 
 echo ""
 echo "Setup complete!"
