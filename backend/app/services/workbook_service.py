@@ -447,44 +447,6 @@ class WorkbookService:
             item_id, site_id, session_id, auto_session, check_lock, action
         )
 
-    async def copy_worksheet(
-        self,
-        item_id: str,
-        sheet: str,
-        name: Optional[str] = None,
-        position_type: Optional[str] = None,
-        relative_to: Optional[str] = None,
-        site_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        auto_session: bool = True,
-        check_lock: bool = True,
-    ) -> dict:
-        """Copy a worksheet, returning the new sheet.
-
-        `position_type` is one of 'None' | 'Before' | 'After' | 'Beginning' |
-        'End'; `relative_to` names the anchor sheet for 'Before'/'After'.
-        """
-        endpoint = (
-            f"{self._base(item_id, site_id)}"
-            f"/worksheets('{self._sheet_ref(sheet)}')/copy"
-        )
-        body: dict = {}
-        if name:
-            body["name"] = name
-        if position_type:
-            body["positionType"] = position_type
-        if relative_to:
-            body["relativeTo"] = relative_to
-
-        async def action(sid):
-            return await self.client.post(
-                endpoint, data=body, extra_headers=self._session_header(sid)
-            )
-
-        return await self._session_write(
-            item_id, site_id, session_id, auto_session, check_lock, action
-        )
-
     async def protect_worksheet(
         self,
         item_id: str,

@@ -285,36 +285,6 @@ async def update_worksheet(
     return result
 
 
-@router.post("/items/{item_id}/worksheet/copy", dependencies=[Depends(require_permission("write:files"))])
-async def copy_worksheet(
-    item_id: str,
-    body: dict,
-    site_id: Optional[str] = None,
-    session_id: Optional[str] = None,
-    auto_session: bool = True,
-    workbook_service: WorkbookService = Depends(get_workbook_service),
-    auth: Auth = Depends(get_current_auth),
-):
-    """Copy a worksheet.
-
-    Body: {"sheet": "Sheet1", "name": "Copy", "position_type": "After",
-    "relative_to": "Sheet1"}. `sheet` is required.
-    """
-    sheet = body.get("sheet")
-    if not sheet:
-        raise HTTPException(status_code=400, detail="'sheet' is required")
-    try:
-        result = await workbook_service.copy_worksheet(
-            item_id=item_id, sheet=sheet, name=body.get("name"),
-            position_type=body.get("position_type"), relative_to=body.get("relative_to"),
-            site_id=site_id, session_id=session_id, auto_session=auto_session,
-        )
-    except WorkbookLockedError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    audit.log_file_upload(auth.email, f"workbook_copy_sheet:{item_id}", sheet)
-    return result
-
-
 @router.post("/items/{item_id}/worksheet/protect", dependencies=[Depends(require_permission("write:files"))])
 async def protect_worksheet(
     item_id: str,

@@ -1503,41 +1503,6 @@ def workbook_update_worksheet(
 
 
 @mcp.tool()
-def workbook_copy_worksheet(
-    item_id: str,
-    sheet: str,
-    name: str = "",
-    position_type: str = "",
-    relative_to: str = "",
-    site_id: str = "",
-    session_id: str = "",
-) -> str:
-    """Copy (duplicate) a worksheet in a live Excel workbook; returns the new sheet.
-
-    Args:
-        item_id: Excel file item ID
-        sheet: Worksheet name or id to copy
-        name: Name for the copy (omit for an Excel-assigned default)
-        position_type: 'None', 'Before', 'After', 'Beginning', or 'End'
-        relative_to: Anchor worksheet name/id for 'Before'/'After'
-        site_id: SharePoint site ID; omit for OneDrive
-        session_id: Optional workbook session id
-    """
-    params = {"site_id": site_id or None, "session_id": session_id or None}
-    body: dict = {"sheet": sheet}
-    if name:
-        body["name"] = name
-    if position_type:
-        body["position_type"] = position_type
-    if relative_to:
-        body["relative_to"] = relative_to
-    return json.dumps(
-        _post(f"/workbook/items/{item_id}/worksheet/copy", data=body, params=params),
-        default=str,
-    )
-
-
-@mcp.tool()
 def workbook_protect_worksheet(
     item_id: str,
     sheet: str,
