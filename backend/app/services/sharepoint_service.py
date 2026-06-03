@@ -85,6 +85,18 @@ class SharePointService:
         drive = self._drive_path(site_id)
         return await self.client.get(f"{drive}/items/{item_id}")
 
+    async def list_versions(self, site_id: str, item_id: str, top: int = 50) -> dict:
+        """List version history for a file."""
+        drive = self._drive_path(site_id)
+        return await self.client.get(f"{drive}/items/{item_id}/versions",
+                                     params={"$top": top})
+
+    async def download_version(self, site_id: str, item_id: str, version_id: str) -> bytes:
+        """Download a specific version's content."""
+        drive = self._drive_path(site_id)
+        return await self.client.get_raw(
+            f"{drive}/items/{item_id}/versions/{version_id}/content")
+
     async def rename_item(self, site_id: str, item_id: str, new_name: str) -> dict:
         """Rename a file or folder in a SharePoint drive."""
         drive = self._drive_path(site_id)

@@ -138,6 +138,34 @@ async def get_item(
     return await sharepoint_service.get_item(site_id=site_id, item_id=item_id)
 
 
+@router.get("/items/{item_id}/versions")
+async def list_versions(
+    item_id: str,
+    site_id: str,
+    top: int = Query(50, ge=1, le=200),
+    sharepoint_service: SharePointService = Depends(get_sharepoint_service),
+):
+    """List version history for a file in a SharePoint drive."""
+    result = await sharepoint_service.list_versions(
+        site_id=site_id, item_id=item_id, top=top,
+    )
+    return result.get("value", [])
+
+
+@router.get("/items/{item_id}/versions/{version_id}/content")
+async def download_version(
+    item_id: str,
+    version_id: str,
+    site_id: str,
+    sharepoint_service: SharePointService = Depends(get_sharepoint_service),
+):
+    """Download a specific historical version of a SharePoint file."""
+    content = await sharepoint_service.download_version(
+        site_id=site_id, item_id=item_id, version_id=version_id,
+    )
+    return Response(content=content, media_type="application/octet-stream")
+
+
 @router.patch("/items/{item_id}")
 async def rename_item(
     item_id: str,
