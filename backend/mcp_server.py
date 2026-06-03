@@ -1092,6 +1092,180 @@ def sharepoint_download_from_url(
 
 
 # ===========================================================================
+# Workbook (Excel) Tools — live, co-authoring-safe cell/range/table writes
+# ===========================================================================
+#
+# These edit an .xlsx at the cell level via the Graph Excel API, so they merge
+# safely into a workbook that is open on other machines (unlike a whole-file
+# replace via files_replace_file / sharepoint upload, which conflicts with open
+# editors). Writes to one workbook must be SEQUENTIAL.
+#
+# For a single edit, just call workbook_update_range / workbook_add_table_row
+# with no session_id — the server opens and closes a persistent session around
+# the write for you (a clean one-call in/out). For several edits to the same
+# workbook, call workbook_create_session once, pass the returned session_id to
+# each write, then workbook_close_session. site_id is required
+# for SharePoint files (from sharepoint_resolve_url / sharepoint_resolve_site)
+# and omitted for the signed-in user's OneDrive.
+
+
+@mcp.tool()
+def workbook_check_lock(item_id: str, site_id: str = "") -> str:
+    """Check whether an Excel file is checked out (blocks writes).
+
+    Co-authoring (multiple people editing) is NOT a checkout and is safe to
+    write to. Use this before a session of edits.
+
+    Args:
+        item_id: Excel file item ID (from sharepoint_resolve_url / search)
+        site_id: SharePoint site ID; omit for OneDrive
+    """
+    params = {"site_id": site_id or None}
+    return json.dumps(_get(f"/workbook/items/{item_id}/lock-state", params), default=str)
+
+
+@mcp.tool()
+def workbook_create_session(item_id: str, site_id: str = "", persist: bool = True) -> str:
+    """Open an Excel workbook session for a batch of edits; returns a session id.
+
+    Pass the returned 'id' as session_id to subsequent workbook_* calls, then
+    call workbook_close_session. A persistent session merges writes into the
+    live co-authoring session. Returns HTTP 409 if the file is checked out.
+
+    Args:
+        item_id: Excel file item ID
+        site_id: SharePoint site ID; omit for OneDrive
+        persist: Persist changes to the file (default True)
+    """
+    params = {"site_id": site_id or None, "persist": persist}
+    return json.dumps(_post(f"/workbook/items/{item_id}/session", params=params), default=str)
+
+
+@mcp.tool()
+def workbook_close_session(item_id: str, session_id: str, site_id: str = "") -> str:
+    """Close an Excel workbook session opened with workbook_create_session.
+
+    Args:
+        item_id: Excel file item ID
+        session_id: Session id from workbook_create_session
+        site_id: SharePoint site ID; omit for OneDrive
+    """
+    qs = f"session_id={session_id}"
+    if site_id:
+        qs += f"&site_id={site_id}"
+    return json.dumps(_delete(f"/workbook/items/{item_id}/session?{qs}"), default=str)
+
+
+@mcp.tool()
+def workbook_list_worksheets(item_id: str, site_id: str = "", session_id: str = "") -> str:
+    """List the worksheets (tabs) in an Excel workbook.
+
+    Args:
+        item_id: Excel file item ID
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    return json.dumps(_get(f"/workbook/items/{item_id}/worksheets", params), default=str)
+
+
+@mcp.tool()
+def workbook_list_tables(item_id: str, site_id: str = "", session_id: str = "") -> str:
+    """List the named tables in an Excel workbook.
+
+    Args:
+        item_id: Excel file item ID
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    return json.dumps(_get(f"/workbook/items/{item_id}/tables", params), default=str)
+
+
+@mcp.tool()
+def workbook_get_range(
+    item_id: str,
+    sheet: str,
+    address: str,
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Read a cell range from an Excel worksheet.
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name, e.g. 'Sheet1'
+        address: Range in A1 notation, e.g. 'A1:C10'
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {
+        "sheet": sheet,
+        "address": address,
+        "site_id": site_id or None,
+        "session_id": session_id or None,
+    }
+    return json.dumps(_get(f"/workbook/items/{item_id}/range", params), default=str)
+
+
+@mcp.tool()
+def workbook_update_range(
+    item_id: str,
+    sheet: str,
+    address: str,
+    values: list,
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Write values into a cell range of a live Excel worksheet.
+
+    Co-authoring-safe: merges into the file even while it is open elsewhere.
+    `values` is a 2D array matching the address dimensions; formulas are
+    strings starting with '='. Returns HTTP 409 if the file is checked out.
+    With no session_id the server opens/closes a session for you (clean in/out).
+
+    Args:
+        item_id: Excel file item ID
+        sheet: Worksheet name, e.g. 'Sheet1'
+        address: Range in A1 notation, e.g. 'A1:B2'
+        values: Rows of cell values, e.g. [["Total", 42], ["=A1*2", 84]]
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional; pass one from workbook_create_session for batches
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body = {"sheet": sheet, "address": address, "values": values}
+    return json.dumps(
+        _patch(f"/workbook/items/{item_id}/range", data=body, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def workbook_add_table_row(
+    item_id: str,
+    table: str,
+    values: list,
+    site_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Append one or more rows to a named table in a live Excel workbook.
+
+    Args:
+        item_id: Excel file item ID
+        table: Table name or id (from workbook_list_tables)
+        values: Rows to append, e.g. [["east", "pear", 4]]
+        site_id: SharePoint site ID; omit for OneDrive
+        session_id: Optional workbook session id
+    """
+    params = {"site_id": site_id or None, "session_id": session_id or None}
+    body = {"values": values}
+    return json.dumps(
+        _post(f"/workbook/items/{item_id}/tables/{table}/rows", data=body, params=params),
+        default=str,
+    )
+
+
+# ===========================================================================
 # Contacts Tools
 # ===========================================================================
 
