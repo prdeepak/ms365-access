@@ -1091,6 +1091,68 @@ def sharepoint_download_from_url(
     return json.dumps({"path": dest_path, "size": len(data), "filename": safe_filename, "item_id": item_id, "site_id": site_id})
 
 
+@mcp.tool()
+def sharepoint_list_versions(item_id: str, site_id: str, top: int = 50) -> str:
+    """List the version history for a SharePoint file.
+
+    Each version has an id, lastModifiedDateTime, size, and lastModifiedBy.
+    Use the version id with sharepoint_download_version to fetch that historical content.
+
+    Args:
+        item_id: Item ID (from sharepoint_search or sharepoint_list_children)
+        site_id: SharePoint site ID (from sharepoint_resolve_url or sharepoint_resolve_site)
+        top: Max versions to return (default 50)
+    """
+    return json.dumps(
+        _get(f"/sharepoint/items/{item_id}/versions", {"site_id": site_id, "top": top}),
+        default=str,
+    )
+
+
+@mcp.tool()
+def sharepoint_download_version(
+    item_id: str,
+    version_id: str,
+    site_id: str,
+    filename: str = "",
+    max_size_bytes: int = 10_485_760,
+) -> str:
+    """Download a specific historical version of a SharePoint file to /tmp.
+
+    Use sharepoint_list_versions to find the version_id.
+
+    Args:
+        item_id: Item ID (from sharepoint_search or sharepoint_list_children)
+        version_id: Version ID (from sharepoint_list_versions)
+        site_id: SharePoint site ID (from sharepoint_resolve_url or sharepoint_resolve_site)
+        filename: Optional filename override
+        max_size_bytes: Maximum file size in bytes (default 10MB)
+    """
+    import os
+    import re
+
+    safe_filename = re.sub(r'[/\\:\x00]', '_', os.path.basename(filename))
+    if not safe_filename:
+        safe_filename = "download"
+
+    with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=60) as c:
+        r = c.get(
+            f"/sharepoint/items/{item_id}/versions/{version_id}/content",
+            params={"site_id": site_id},
+        )
+        r.raise_for_status()
+        data = r.content
+
+    if len(data) > max_size_bytes:
+        return json.dumps({"error": f"File too large: {len(data)} bytes (max {max_size_bytes})", "size": len(data)})
+
+    dest_path = f"/tmp/ms365-version-{item_id}-{version_id}-{safe_filename}"
+    with open(dest_path, "wb") as f:
+        f.write(data)
+
+    return json.dumps({"path": dest_path, "size": len(data), "version_id": version_id})
+
+
 # ===========================================================================
 # Contacts Tools
 # ===========================================================================
