@@ -7,4 +7,4 @@ msal==1.26.0
 python-dotenv==1.0.0
 pydantic-settings==2.1.0
 cryptography==41.0.7
-python-multipart==0.0.6
+python-multipart==0.0.27
