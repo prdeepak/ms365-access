@@ -83,9 +83,12 @@ class GraphClient:
         response.raise_for_status()
         return response.json()
 
-    async def post(self, endpoint: str, data: Optional[dict] = None) -> dict:
+    async def post(self, endpoint: str, data: Optional[dict] = None,
+                   extra_headers: Optional[dict] = None) -> dict:
         client = await self._get_client()
         headers = await self._get_headers()
+        if extra_headers:
+            headers.update(extra_headers)
         url = f"{self.base_url}{endpoint}"
         response = await client.post(url, headers=headers, json=data)
         response.raise_for_status()
@@ -93,9 +96,12 @@ class GraphClient:
             return {}
         return response.json() if response.content else {}
 
-    async def patch(self, endpoint: str, data: dict) -> dict:
+    async def patch(self, endpoint: str, data: dict,
+                    extra_headers: Optional[dict] = None) -> dict:
         client = await self._get_client()
         headers = await self._get_headers()
+        if extra_headers:
+            headers.update(extra_headers)
         url = f"{self.base_url}{endpoint}"
         response = await client.patch(url, headers=headers, json=data)
         response.raise_for_status()
