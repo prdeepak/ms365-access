@@ -37,18 +37,37 @@ class WorkbookService:
     def __init__(self, graph_client: GraphClient):
         self.client = graph_client
 
-    def _base(self, item_id: str, site_id: Optional[str] = None) -> str:
+    def _base(
+        self,
+        item_id: str,
+        site_id: Optional[str] = None,
+        drive_id: Optional[str] = None,
+    ) -> str:
         """Build the workbook endpoint prefix.
 
-        Uses /sites/{site_id}/drive for SharePoint items, /me/drive for the
-        signed-in user's OneDrive when no site is given.
+        Uses /drives/{drive_id} when a drive is given (takes precedence — this
+        is how the smart-update engine, which only has a drive_id, addresses a
+        SharePoint item), else /sites/{site_id}/drive for SharePoint items, else
+        /me/drive for the signed-in user's OneDrive.
         """
-        drive = f"/sites/{site_id}/drive" if site_id else "/me/drive"
+        drive = self._drive_prefix(site_id, drive_id)
         return f"{drive}/items/{item_id}/workbook"
 
-    def _item_path(self, item_id: str, site_id: Optional[str] = None) -> str:
-        drive = f"/sites/{site_id}/drive" if site_id else "/me/drive"
-        return f"{drive}/items/{item_id}"
+    def _item_path(
+        self,
+        item_id: str,
+        site_id: Optional[str] = None,
+        drive_id: Optional[str] = None,
+    ) -> str:
+        return f"{self._drive_prefix(site_id, drive_id)}/items/{item_id}"
+
+    @staticmethod
+    def _drive_prefix(site_id: Optional[str], drive_id: Optional[str]) -> str:
+        if drive_id:
+            return f"/drives/{drive_id}"
+        if site_id:
+            return f"/sites/{site_id}/drive"
+        return "/me/drive"
 
     @staticmethod
     def _session_header(session_id: Optional[str]) -> Optional[dict]:
@@ -65,7 +84,10 @@ class WorkbookService:
     # -- Lock / safety preflight ------------------------------------------
 
     async def get_lock_state(
-        self, item_id: str, site_id: Optional[str] = None
+        self,
+        item_id: str,
+        site_id: Optional[str] = None,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """Best-effort check of whether the file is checked out by someone.
 
@@ -74,7 +96,7 @@ class WorkbookService:
         exclusive check-out reports the user holding it.
         """
         item = await self.client.get(
-            self._item_path(item_id, site_id),
+            self._item_path(item_id, site_id, drive_id),
             params={"$expand": "listItem($expand=fields)"},
         )
         checked_out = False
@@ -100,11 +122,14 @@ class WorkbookService:
         }
 
     async def _ensure_writable(
-        self, item_id: str, site_id: Optional[str] = None
+        self,
+        item_id: str,
+        site_id: Optional[str] = None,
+        drive_id: Optional[str] = None,
     ) -> None:
         """Raise WorkbookLockedError if the file is exclusively checked out."""
         try:
-            state = await self.get_lock_state(item_id, site_id)
+            state = await self.get_lock_state(item_id, site_id, drive_id)
         except Exception as e:  # best-effort; don't block on a flaky preflight
             logger.warning("Lock preflight failed for %s: %s", item_id, e)
             return
@@ -124,6 +149,7 @@ class WorkbookService:
         site_id: Optional[str] = None,
         persist: bool = True,
         check_lock: bool = True,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """Create a workbook session and return its id.
 
@@ -131,10 +157,10 @@ class WorkbookService:
         Pass the returned id to subsequent range/table calls for performance.
         """
         if check_lock:
-            await self._ensure_writable(item_id, site_id)
+            await self._ensure_writable(item_id, site_id, drive_id)
         try:
             return await self.client.post(
-                f"{self._base(item_id, site_id)}/createSession",
+                f"{self._base(item_id, site_id, drive_id)}/createSession",
                 data={"persistChanges": persist},
             )
         except httpx.HTTPStatusError as e:
@@ -142,11 +168,15 @@ class WorkbookService:
             raise
 
     async def close_session(
-        self, item_id: str, session_id: str, site_id: Optional[str] = None
+        self,
+        item_id: str,
+        session_id: str,
+        site_id: Optional[str] = None,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """Close a workbook session."""
         return await self.client.post(
-            f"{self._base(item_id, site_id)}/closeSession",
+            f"{self._base(item_id, site_id, drive_id)}/closeSession",
             data={},
             extra_headers=self._session_header(session_id),
         )
@@ -158,10 +188,11 @@ class WorkbookService:
         item_id: str,
         site_id: Optional[str] = None,
         session_id: Optional[str] = None,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """List worksheets in the workbook."""
         return await self.client.get(
-            f"{self._base(item_id, site_id)}/worksheets",
+            f"{self._base(item_id, site_id, drive_id)}/worksheets",
             extra_headers=self._session_header(session_id),
         )
 
@@ -266,6 +297,7 @@ class WorkbookService:
         session_id: Optional[str] = None,
         auto_session: bool = True,
         check_lock: bool = True,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """Write a 2D array of values into a range.
 
@@ -279,7 +311,7 @@ class WorkbookService:
         """
         addr = quote(address, safe=":!$")
         endpoint = (
-            f"{self._base(item_id, site_id)}"
+            f"{self._base(item_id, site_id, drive_id)}"
             f"/worksheets('{self._sheet_ref(sheet)}')/range(address='{addr}')"
         )
 
@@ -371,9 +403,10 @@ class WorkbookService:
         session_id: Optional[str] = None,
         auto_session: bool = True,
         check_lock: bool = True,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """Add a new worksheet. Graph picks a default name if `name` is omitted."""
-        endpoint = f"{self._base(item_id, site_id)}/worksheets/add"
+        endpoint = f"{self._base(item_id, site_id, drive_id)}/worksheets/add"
         body = {"name": name} if name else {}
 
         async def action(sid):
@@ -393,10 +426,11 @@ class WorkbookService:
         session_id: Optional[str] = None,
         auto_session: bool = True,
         check_lock: bool = True,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """Delete a worksheet by name or id."""
         endpoint = (
-            f"{self._base(item_id, site_id)}/worksheets('{self._sheet_ref(sheet)}')"
+            f"{self._base(item_id, site_id, drive_id)}/worksheets('{self._sheet_ref(sheet)}')"
         )
 
         async def action(sid):
@@ -420,6 +454,7 @@ class WorkbookService:
         session_id: Optional[str] = None,
         auto_session: bool = True,
         check_lock: bool = True,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """Update a worksheet's properties in one PATCH.
 
@@ -428,7 +463,7 @@ class WorkbookService:
         left unchanged.
         """
         endpoint = (
-            f"{self._base(item_id, site_id)}/worksheets('{self._sheet_ref(sheet)}')"
+            f"{self._base(item_id, site_id, drive_id)}/worksheets('{self._sheet_ref(sheet)}')"
         )
         body: dict = {}
         if name is not None:
@@ -508,11 +543,12 @@ class WorkbookService:
         session_id: Optional[str] = None,
         auto_session: bool = True,
         check_lock: bool = True,
+        drive_id: Optional[str] = None,
     ) -> dict:
         """Clear a cell range. `apply_to` is 'All' | 'Formats' | 'Contents'."""
         addr = quote(address, safe=":!$")
         endpoint = (
-            f"{self._base(item_id, site_id)}"
+            f"{self._base(item_id, site_id, drive_id)}"
             f"/worksheets('{self._sheet_ref(sheet)}')/range(address='{addr}')/clear"
         )
 

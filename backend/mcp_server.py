@@ -114,6 +114,22 @@ def _put_binary(path: str, content: bytes, content_type: str = "application/octe
         return r.json()
 
 
+def _post_multipart(path: str, content: bytes, content_type: str,
+                    fields: dict | None = None, params: dict | None = None) -> dict | str:
+    """POST a file plus optional text form fields as multipart/form-data."""
+    auth_headers = {"Authorization": f"Bearer {API_KEY}"}
+    data = {k: v for k, v in (fields or {}).items() if v is not None}
+    with httpx.Client(base_url=BASE_URL, headers=auth_headers, timeout=120) as c:
+        r = c.post(
+            path,
+            params={k: v for k, v in (params or {}).items() if v is not None},
+            files={"file": ("upload", content, content_type)},
+            data=data,
+        )
+        r.raise_for_status()
+        return r.json()
+
+
 def _delete(path: str) -> dict | str:
     with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=30) as c:
         r = c.delete(path)
@@ -901,6 +917,69 @@ def files_replace_file(
         "webUrl": result.get("webUrl") if isinstance(result, dict) else None,
         "size": result.get("size") if isinstance(result, dict) else None,
     })
+
+
+@mcp.tool()
+def files_smart_update(
+    item_id: str,
+    local_path: str,
+    drive_id: str | None = None,
+    site_id: str | None = None,
+    region_map: dict | None = None,
+) -> str:
+    """Replace a SharePoint/OneDrive .xlsx in place, with a live-edit fallback.
+
+    Tries a normal whole-file replace first. If the file is open in Excel and the
+    replace is blocked (423 Locked), it diffs the new workbook against the live
+    one and surgically applies the changes it can reproduce via a Graph Excel
+    session — values/formulas inside the declared `region_map` regions, plus
+    worksheet add/delete/rename/reorder — leaving all formatting (including
+    conditional formatting) untouched. If the change can't be reproduced live
+    (a formatting/structural change, a change outside any region, or an exclusive
+    lock), it returns `deferred` so you can ask the user to close the file and
+    retry a clean replace.
+
+    Args:
+        item_id: Item ID of the existing .xlsx to update
+        local_path: Absolute path to the freshly built local .xlsx
+        drive_id: Drive ID (required for SharePoint drives)
+        site_id: SharePoint site ID (alternative to drive_id; omit for OneDrive)
+        region_map: Optional per-tab data regions safe to overwrite, e.g.
+            {"AP payments": {"data": "A2:U200"}}. Without it, most diffs defer
+            (safe default) — the map is what enables live-editing.
+
+    Returns JSON {"mode", "ranges_written", "reason"} where mode is one of
+    `replaced` | `live-edited` | `deferred`.
+    """
+    import os
+
+    if not os.path.isfile(local_path):
+        return json.dumps({"error": f"File not found: {local_path}"})
+
+    with open(local_path, "rb") as f:
+        file_bytes = f.read()
+
+    params = {}
+    if drive_id:
+        params["drive_id"] = drive_id
+    if site_id:
+        params["site_id"] = site_id
+
+    fields = {}
+    if region_map is not None:
+        fields["region_map"] = json.dumps(region_map)
+
+    content_type = (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    result = _post_multipart(
+        f"/files/items/{item_id}/smart-update",
+        content=file_bytes,
+        content_type=content_type,
+        fields=fields,
+        params=params,
+    )
+    return json.dumps(result, default=str)
 
 
 # ===========================================================================

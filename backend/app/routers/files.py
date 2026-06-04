@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, Query, UploadFile, File, Response
+import json
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile, File, Response
 from typing import Optional
 
 from app.dependencies import get_graph_client, get_current_auth, require_permission
 from app.services.graph_client import GraphClient
 from app.services.onedrive_service import OneDriveService
+from app.services.workbook_service import WorkbookService
+from app.services.smart_update_service import SmartUpdateService
 from app.models import Auth
 from app.schemas import CreateFolderRequest, RenameItemRequest
 from app import audit
@@ -13,6 +17,14 @@ router = APIRouter(prefix="/files", tags=["files"])
 
 def get_onedrive_service(graph_client: GraphClient = Depends(get_graph_client)) -> OneDriveService:
     return OneDriveService(graph_client)
+
+
+def get_smart_update_service(
+    graph_client: GraphClient = Depends(get_graph_client),
+) -> SmartUpdateService:
+    return SmartUpdateService(
+        OneDriveService(graph_client), WorkbookService(graph_client)
+    )
 
 
 @router.get("/drives", dependencies=[Depends(require_permission("read:files"))])
@@ -123,6 +135,48 @@ async def replace_content(
         drive_id=drive_id,
     )
     audit.log_file_upload(auth.email, f"replace:{item_id}", item_id)
+    return result
+
+
+@router.post("/items/{item_id}/smart-update", dependencies=[Depends(require_permission("write:files"))])
+async def smart_update(
+    item_id: str,
+    file: UploadFile = File(...),
+    drive_id: Optional[str] = None,
+    site_id: Optional[str] = None,
+    region_map: Optional[str] = Form(None),
+    smart_update_service: SmartUpdateService = Depends(get_smart_update_service),
+    auth: Auth = Depends(get_current_auth),
+):
+    """Replace a SharePoint/OneDrive .xlsx in place, with a live-edit fallback.
+
+    Tries a whole-file replace first. If the file is open in Excel (423 Locked),
+    it diffs the proposed workbook against the live one and — when every change
+    is a value/formula/structure edit it can reproduce via a Graph session
+    (values/formulas inside declared `region_map` regions; worksheet
+    add/delete/rename/reorder) — applies them surgically, leaving formatting
+    untouched. Otherwise it returns `deferred` so the caller can ask the user to
+    close the file and retry a clean replace.
+
+    `region_map` is an optional JSON object, e.g.
+    `{"AP payments": {"data": "A2:U200"}}`. Without it, most diffs defer (safe
+    default). Returns `{"mode", "ranges_written", "reason"}` where mode is one of
+    `replaced` | `live-edited` | `deferred`.
+    """
+    content = await file.read()
+    try:
+        rmap = json.loads(region_map) if region_map else None
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"region_map is not valid JSON: {e}")
+
+    result = await smart_update_service.smart_update(
+        item_id=item_id,
+        new_bytes=content,
+        drive_id=drive_id,
+        site_id=site_id,
+        region_map=rmap,
+    )
+    audit.log_file_upload(auth.email, f"smart_update:{item_id}", result["mode"])
     return result
 
 
