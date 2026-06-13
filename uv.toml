@@ -1,0 +1,9 @@
+# Seasoning: refuse to resolve packages uploaded AFTER this date (safety floor
+# for ad-hoc `uv pip install` / venv rebuilds). FIXED DATE only on uv 0.10.x — bump ~monthly.
+#
+# Set to 2026-06-02 rather than a strict 30-day window: PR #33 upgraded fastapi/starlette
+# for a CVE fix, and the secure starlette 1.2.1 published 2026-05-31, so the floor must sit
+# just past it. A full 30-day floor would roll back to starlette 1.1.0 and re-introduce those
+# CVEs. uv reads this config floor automatically (do NOT also pass --exclude-newer on the CLI —
+# combining the two resolves differently). Bump this date forward ~monthly as deps age.
+exclude-newer = "2026-06-02"

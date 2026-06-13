@@ -433,7 +433,7 @@ make down  # Stop
 | GET | `/sharepoint/search?q=...&site_id=...&top=...` | Search |
 | GET | `/sharepoint/sites/{host_path}` | Resolve Site |
 
-### 
+###
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|

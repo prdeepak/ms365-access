@@ -1,25 +1,47 @@
 name: security
 
+# Supply-chain + secret gates. Runs on every push/PR and weekly (to catch
+# CVEs newly disclosed against already-pinned deps).
 on:
   push:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+    - cron: "0 6 * * 1"   # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   pip-audit:
+    name: pip-audit (known-vuln scan)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install pip-audit
-
-      # Audit the hash-pinned locks.
+      # Audit API lock against Python advisory DB.
       - name: Audit API dependencies
-        run: pip-audit -r backend/requirements.lock
-
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: backend/requirements.lock
+      # Audit MCP lock separately.
       - name: Audit MCP dependencies
-        run: pip-audit -r backend/requirements-mcp.lock
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: backend/requirements-mcp.lock
+
+  gitleaks:
+    name: gitleaks (secret scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history, so a secret in any past commit is caught
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Free for personal repos (prdeepak/*).
+          # Org-owned repos need GITLEAKS_LICENSE.
