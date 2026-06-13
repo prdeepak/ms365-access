@@ -233,15 +233,51 @@ Document the rationale in a comment inline, with date and reassessment trigger (
 
 ---
 
-## Item 5 — Enable GitHub push protection (repo setting — 1 click)
+## Item 5 — Enable GitHub secret scanning + push protection (repo setting)
 
-**Not a file change — do this in the GitHub UI:**
+**Not a file change — do this in the GitHub UI.**
 
-1. Go to `https://github.com/prdeepak/ms365-access` → Settings → Code security
-2. Under "Push protection": enable it.
-3. Under "Secret scanning": enable it (free for all repos as of 2024).
+GitHub renamed this page: it is now **Settings → (left sidebar, under "Security and quality") → "Advanced Security"** — the URL is still `https://github.com/prdeepak/ms365-access/settings/security_analysis`.
+
+1. Open that page.
+2. Scroll **below the Dependabot block** to the **"Secret scanning"** section and enable it (free for all repos as of 2024).
+3. **Push protection** appears as a sub-toggle once secret scanning is on — enable it.
 
 This blocks secrets at `git push` time even if the pre-commit hook was skipped (e.g. `--no-verify`, new machine, CI pushes).
+
+**Verify from the CLI:**
+```bash
+gh api repos/prdeepak/ms365-access --jq '.security_and_analysis'
+# expect secret_scanning, secret_scanning_push_protection, dependabot_security_updates = "enabled"
+```
+
+> Status (2026-06-13): confirmed enabled — `secret_scanning`, `secret_scanning_push_protection`, `dependabot_security_updates` all `"enabled"`. The optional `secret_scanning_non_provider_patterns` (generic/custom token formats) and `secret_scanning_validity_checks` (probe found tokens for liveness) remain disabled — nice-to-haves, enable if desired.
+
+---
+
+## Item 6 — Require the security checks before merge (branch protection)
+
+**Not a file change — do this in the GitHub UI / `gh`.** Without this, the `security` workflow runs but a red PR can still merge to `main`. This turns the CVE + secret scan from advisory into an enforced merge gate.
+
+**Settings → Branches** (classic branch protection) or **Settings → Rules → Rulesets** (newer) for `main`:
+
+1. ✅ **Require status checks to pass before merging**
+2. ✅ **Require branches to be up to date before merging** (`strict` — checks run against the post-merge state)
+3. In the check search box, select **`pip-audit (known-vuln scan)`** and **`gitleaks (secret scan)`**.
+4. Optionally ✅ **Require a pull request before merging** — note this blocks direct pushes to `main`; everything must go through a PR.
+
+> ⚠️ **Timing gotcha:** the individual check names only appear in the selection box **after the workflow has reported at least once** on a branch/PR. If you enable "require status checks" before that, the required-checks list is empty and nothing is actually gated. Let the workflow run once (e.g. on the implementing PR), then add the checks.
+
+**Add the checks from the CLI (additive — won't disturb other protection settings):**
+```bash
+gh api -X POST repos/prdeepak/ms365-access/branches/main/protection/required_status_checks/contexts \
+  -f "contexts[]=pip-audit (known-vuln scan)" \
+  -f "contexts[]=gitleaks (secret scan)"
+# verify:
+gh api repos/prdeepak/ms365-access/branches/main/protection/required_status_checks --jq '{strict,contexts}'
+```
+
+> Status (2026-06-13): enforced — `main` requires both `pip-audit (known-vuln scan)` and `gitleaks (secret scan)`, `strict: true`.
 
 ---
 
@@ -271,9 +307,12 @@ Run these steps **in order**; each is independently verifiable:
 4. Replace `.github/workflows/security.yml` with the fixed version (Item 4)
 5. Commit all four file changes in a single commit: `feat(security): add dependabot, pre-commit, uv seasoning, fix security.yml`
 6. Push the commit
-7. (Manual) Enable GitHub push protection in the repo settings UI — cannot be scripted without a PAT with `administration` scope
+7. (Manual) Enable secret scanning + push protection on the **Advanced Security** settings page (Item 5)
+8. (Manual) After the `security` workflow runs once, require `pip-audit` + `gitleaks` as status checks on `main` (Item 6)
 
 **Verify after push:**
 - GitHub Actions → security workflow should pass green on the new commit
 - `pre-commit run --all-files` should be clean locally
 - Dependabot should appear under Insights → Dependency graph → Dependabot within ~10 minutes of the dependabot.yml push
+- `gh api repos/prdeepak/ms365-access --jq '.security_and_analysis'` shows secret scanning + push protection enabled (Item 5)
+- `gh api repos/prdeepak/ms365-access/branches/main/protection/required_status_checks --jq '{strict,contexts}'` lists both checks (Item 6)
