@@ -281,19 +281,21 @@ gh api repos/prdeepak/ms365-access/branches/main/protection/required_status_chec
 
 ---
 
-## Optional — Pin Docker base images to digests
+## Item 7 — Pin Docker base images to digests ✅ DONE (2026-06-13)
 
-**Current:** both Dockerfiles use `python:3.11-slim` (floating tag — a new image can be pulled silently).
+**Was:** both Dockerfiles used `python:3.11-slim` (floating tag — a new image can be pulled silently).
 
-**Hardened form:**
+**Now:** both `Dockerfile` and `Dockerfile.mcp` pin the multi-arch (OCI image index) digest:
 ```dockerfile
-# Pin to a specific digest so "docker pull" is deterministic and tamper-evident.
-# Re-pin periodically (monthly) or when you intentionally upgrade Python.
-# Get current digest: docker pull python:3.11-slim && docker inspect python:3.11-slim --format '{{index .RepoDigests 0}}'
-FROM python:3.11-slim@sha256:<digest-here>
+FROM python:3.11-slim@sha256:f9fa7f851e38bfb19c9de3afbc4b86ae7176ea7aaf94535c31df5458d5849457
 ```
+This makes `docker pull` deterministic and tamper-evident. The digest is the manifest-list digest, so cross-platform builds (amd64/arm64/…) still resolve correctly.
 
-This is low-urgency for a non-public service. Do it when you next touch the Dockerfiles for another reason.
+**Re-pin when** you intentionally upgrade Python or want base-image security patches (the pinned tag will NOT float them in for you):
+```bash
+docker buildx imagetools inspect python:3.11-slim --format '{{.Manifest.Digest}}'
+# paste the new sha256 into both Dockerfiles
+```
 
 ---
 
