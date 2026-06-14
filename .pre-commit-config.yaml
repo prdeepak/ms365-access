@@ -1,0 +1,21 @@
+# Local pre-commit gates — block secrets before they ever reach a commit.
+# One-time setup (run from repo root):
+#   pip install pre-commit        (or: brew install pre-commit)
+#   pre-commit autoupdate         # corrects rev: pins to current valid release tags
+#   pre-commit install            # installs the git hook
+#
+# `autoupdate` is important — run it before the first install so hook revs are current.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: detect-private-key            # catches PEM/SSH keys
+      - id: check-added-large-files       # a 5 MB blob is often an accidental dump
+        args: ["--maxkb=1024"]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace

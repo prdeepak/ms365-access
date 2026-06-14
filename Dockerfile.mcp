@@ -1,4 +1,8 @@
-FROM python:3.11-slim
+# Pinned to a digest so `docker pull` is deterministic and tamper-evident (the
+# floating python:3.11-slim tag can be silently repointed upstream). Re-pin when
+# you intentionally upgrade Python or pull in base-image security patches:
+#   docker buildx imagetools inspect python:3.11-slim --format '{{.Manifest.Digest}}'
+FROM python:3.11-slim@sha256:f9fa7f851e38bfb19c9de3afbc4b86ae7176ea7aaf94535c31df5458d5849457
 
 WORKDIR /app
 

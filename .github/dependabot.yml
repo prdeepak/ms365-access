@@ -1,0 +1,35 @@
+# Dependabot keeps dependencies patched and flags known-vulnerable versions.
+# Free on private repos. PRs land for you to review; read the changelog before merging,
+# then regenerate the lock:
+#   uv pip compile backend/requirements.txt --generate-hashes --python-version 3.11 -o backend/requirements.lock
+#   uv pip compile backend/requirements-mcp.txt --generate-hashes --python-version 3.11 -o backend/requirements-mcp.lock
+version: 2
+
+updates:
+  # Python API deps — Dependabot reads requirements.txt (the source ranges).
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    # SEASONING: hold non-security version bumps for 30 days after release.
+    # Security/CVE advisories still land immediately regardless of this setting.
+    # Reference: https://github.blog/changelog/2025-07-01-dependabot-supports-configuration-of-a-minimum-package-age/
+    cooldown:
+      default-days: 30
+      semver-patch-days: 7
+
+  # Keep the GitHub Actions used in CI patched.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "ci"
+    cooldown:
+      default-days: 14
