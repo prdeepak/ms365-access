@@ -1,0 +1,46 @@
+name: CI
+
+# Backend-only, no-credentials smoke tests. A green check means the API app and
+# its routers still import, the FastAPI route table builds, /health responds 200,
+# and the locked dependencies resolve under hash verification.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend-smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.lock
+            backend/requirements-dev.lock
+
+      - name: Install locked dependencies (hash-verified)
+        # API runtime lock + dev lock (pytest). Both are uv-generated with
+        # --generate-hashes, so --require-hashes verifies every artifact.
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes \
+            -r requirements.lock \
+            -r requirements-dev.lock
+
+      - name: Run smoke tests
+        # Dummy, non-secret values — the repo's Settings has four required,
+        # default-less fields and app/main.py calls get_settings() at import
+        # time, so a single SECRET_KEY is not enough; all four are required.
+        env:
+          AZURE_CLIENT_ID: ci-not-real
+          AZURE_CLIENT_SECRET: ci-not-real
+          AZURE_TENANT_ID: ci-not-real
+          SECRET_KEY: ci-test-secret-not-used-for-real-auth
+        run: python -m pytest -q
