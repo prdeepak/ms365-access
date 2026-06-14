@@ -21,6 +21,13 @@ updates:
     cooldown:
       default-days: 30
       semver-patch-days: 7
+    # Collapse routine minor/patch bumps into ONE PR (fewer reviews; also avoids the
+    # branch-protection rebase cascade of N single PRs). Majors stay separate for review.
+    groups:
+      python-minor-patch:
+        update-types:
+          - minor
+          - patch
 
   # Keep the GitHub Actions used in CI patched.
   - package-ecosystem: "github-actions"
@@ -33,3 +40,7 @@ updates:
       - "ci"
     cooldown:
       default-days: 14
+    groups:
+      github-actions:
+        patterns:
+          - "*"
