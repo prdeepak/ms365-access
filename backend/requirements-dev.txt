@@ -1,0 +1,6 @@
+# Dev/CI-only dependencies (test runner). Not installed into the API/MCP runtime
+# images. Compile to requirements-dev.lock with:
+#   uv pip compile backend/requirements-dev.txt --generate-hashes \
+#     --python-version 3.11 -c backend/requirements.lock -o backend/requirements-dev.lock
+# Seasoning (exclude-newer) is governed by uv.toml — do NOT pass --exclude-newer.
+pytest
