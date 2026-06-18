@@ -463,6 +463,58 @@ def mail_get_attachments(message_id: str, user: str | None = None) -> str:
 
 
 @mcp.tool()
+def mail_download_attachment(
+    message_id: str,
+    attachment_id: str,
+    filename: str,
+    max_size_bytes: int = 10_485_760,
+    user: str | None = None,
+) -> str:
+    """Download an email attachment and save it to a local temp file.
+
+    The file is saved to /tmp/ms365-attachment-{message_id}-{safe_filename},
+    which can be passed directly to mail_add_attachment's file_path.
+
+    Args:
+        message_id: ID of the message containing the attachment
+        attachment_id: Attachment ID (from mail_get_attachments)
+        filename: Original filename of the attachment (for safe naming in /tmp)
+        max_size_bytes: Maximum attachment size in bytes (default 10MB)
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
+    """
+    import os
+    import re
+
+    # Sanitize filename: strip path separators and null bytes
+    safe_filename = re.sub(r'[/\\:\x00]', '_', os.path.basename(filename))
+    if not safe_filename:
+        safe_filename = "attachment"
+
+    # Download raw bytes
+    params = {"user": user} if user else None
+    with httpx.Client(base_url=BASE_URL, headers=_headers(), timeout=60) as c:
+        r = c.get(f"/mail/messages/{message_id}/attachments/{attachment_id}", params=params)
+        r.raise_for_status()
+        data = r.content
+
+    if len(data) > max_size_bytes:
+        return json.dumps({
+            "error": f"Attachment too large: {len(data)} bytes (max {max_size_bytes})",
+            "size": len(data),
+        })
+
+    dest_path = f"/tmp/ms365-attachment-{message_id}-{safe_filename}"
+    with open(dest_path, "wb") as f:
+        f.write(data)
+
+    return json.dumps({
+        "path": dest_path,
+        "size": len(data),
+        "filename": safe_filename,
+    })
+
+
+@mcp.tool()
 def mail_add_attachment(
     message_id: str,
     file_path: str,
