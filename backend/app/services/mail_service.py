@@ -181,6 +181,47 @@ class MailService:
         }
         return await self.client.post(f"{_scope(user)}/messages/{message_id}/forward", data)
 
+    async def create_forward_draft(
+        self,
+        message_id: str,
+        to_recipients: Optional[list] = None,
+        comment: str = "",
+        cc_recipients: Optional[list] = None,
+        bcc_recipients: Optional[list] = None,
+        user: Optional[str] = None,
+    ) -> dict:
+        """Create a draft forward of a message (does not send it).
+
+        Uses MS Graph createForward, which creates a draft in the Drafts
+        folder with the original message — including inline images and
+        attachments — preserved. The createForward action only accepts
+        toRecipients, so cc/bcc are applied via a follow-up PATCH on the
+        returned draft.
+
+        Returns the draft message object with its ID. Update the body with
+        PATCH /mail/messages/{draft_id} before sending if needed.
+        """
+        data: dict = {}
+        if comment:
+            data["comment"] = comment
+        if to_recipients:
+            data["toRecipients"] = [self._parse_recipient(r) for r in to_recipients]
+        draft = await self.client.post(
+            f"{_scope(user)}/messages/{message_id}/createForward", data
+        )
+        if cc_recipients or bcc_recipients:
+            patch: dict = {}
+            if cc_recipients:
+                patch["ccRecipients"] = [self._parse_recipient(r) for r in cc_recipients]
+            if bcc_recipients:
+                patch["bccRecipients"] = [self._parse_recipient(r) for r in bcc_recipients]
+            draft_id = draft.get("id")
+            if draft_id:
+                draft = await self.client.patch(
+                    f"{_scope(user)}/messages/{draft_id}", patch
+                )
+        return draft
+
     async def update_message(
         self,
         message_id: str,
