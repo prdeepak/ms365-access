@@ -467,7 +467,7 @@ def generate_client(endpoints):
     # Methods grouped by prefix
     for prefix, eps in groups.items():
         parts.append("    # " + "-" * 66)
-        parts.append(f"    # {prefix.replace('-', ' ').title()}")
+        parts.append(f"    # {prefix.replace('-', ' ').title()}".rstrip())
         parts.append("    # " + "-" * 66)
         for ep in eps:
             parts.append("")
@@ -492,7 +492,7 @@ def generate_readme_section(endpoints):
 
     for prefix, eps in groups.items():
         title = prefix.replace("-", " ").title()
-        lines.append(f"### {title}")
+        lines.append(f"### {title}".rstrip())
         lines.append("")
         lines.append("| Method | Endpoint | Description |")
         lines.append("|--------|----------|-------------|")
