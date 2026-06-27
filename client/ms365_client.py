@@ -301,15 +301,21 @@ class Ms365Client:
         params = {k: v for k, v in {"user": user}.items() if v is not None}
         return self._get_json(f"/mail/messages/{message_id}/attachments/{attachment_id}", params)
 
+    def create_forward_draft(self, message_id, data=None, user=None):
+        """Create Forward Draft"""
+        params = {k: v for k, v in {"user": user}.items() if v is not None}
+        return self._post_json(f"/mail/messages/{message_id}/draftForward", data, params)
+
     def create_reply_draft(self, message_id, data=None, reply_all=False, user=None):
         """Create Reply Draft"""
         params = {k: v for k, v in {"reply_all": reply_all, "user": user}.items() if v is not None}
         return self._post_json(f"/mail/messages/{message_id}/draftReply", data, params)
 
-    def forward_message(self, message_id, comment, to_recipients, user=None):
+    def forward_message(self, message_id, to_recipients, comment='', user=None):
         """Forward Message"""
         data = {}
-        data["comment"] = comment
+        if comment is not None:
+            data["comment"] = comment
         data["to_recipients"] = to_recipients
         params = {k: v for k, v in {"user": user}.items() if v is not None}
         return self._post_json(f"/mail/messages/{message_id}/forward", data, params)
@@ -564,6 +570,11 @@ class Ms365Client:
         """Replace Content"""
         params = {k: v for k, v in {"drive_id": drive_id}.items() if v is not None}
         return self._put_json(f"/files/items/{item_id}/content", data, params)
+
+    def smart_update(self, item_id, data=None, drive_id=None, site_id=None):
+        """Smart Update"""
+        params = {k: v for k, v in {"drive_id": drive_id, "site_id": site_id}.items() if v is not None}
+        return self._post_json(f"/files/items/{item_id}/smart-update", data, params)
 
     def create_folder(self, parent_id, name, drive_id=None):
         """Create Folder"""
