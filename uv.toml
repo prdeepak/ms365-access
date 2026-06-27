@@ -7,4 +7,9 @@
 # those releases or uv resolves back to the vulnerable versions. uv reads this config floor
 # automatically (do NOT also pass --exclude-newer on the CLI — combining the two resolves
 # differently). Bump this date forward ~monthly as deps age.
-exclude-newer = "2026-06-17"
+#
+# Bumped to 2026-06-20 to admit pydantic-settings 2.14.2 (GHSA-4xgf-cpjx-pc3j, published
+# 2026-06-19) — the fix for a symlink out-of-tree secrets read + secrets_dir_max_size bypass
+# in NestedSecretsSettingsSource. The floor must sit just past that release or uv resolves
+# back to the vulnerable 2.14.1.
+exclude-newer = "2026-06-20"
