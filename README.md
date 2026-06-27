@@ -63,7 +63,8 @@ Well-known folder names: `inbox`, `drafts`, `sentitems`, `deleteditems`, `junkem
 | POST | `/mail/messages/{id}/send` | Send an existing draft |
 | POST | `/mail/messages/{id}/draftReply` | Create a draft reply (does not send) |
 | POST | `/mail/messages/{id}/reply` | Reply to a message (sends immediately) |
-| POST | `/mail/messages/{id}/forward` | Forward a message |
+| POST | `/mail/messages/{id}/forward` | Forward a message (sends immediately) |
+| POST | `/mail/messages/{id}/draftForward` | Create a draft forward (does not send) |
 | PATCH | `/mail/messages/{id}` | Update message (read status, flags, categories, body) |
 | POST | `/mail/messages/{id}/move` | Move message to a folder |
 | DELETE | `/mail/messages/{id}` | Delete a message |
@@ -114,6 +115,15 @@ Well-known folder names: `inbox`, `drafts`, `sentitems`, `deleteditems`, `junkem
 ```json
 { "comment": "FYI", "to_recipients": ["user@example.com"] }
 ```
+
+Forwarding re-sends the original message, so inline images and attachments are preserved automatically.
+
+**POST `/mail/messages/{id}/draftForward` body** (all fields optional):
+```json
+{ "comment": "FYI", "to_recipients": ["user@example.com"], "cc_recipients": [], "bcc_recipients": [] }
+```
+
+Unlike the immediate `/forward`, the draft variant supports cc/bcc. It returns the draft object; send it later with `POST /mail/messages/{draft_id}/send`.
 
 **PATCH `/mail/messages/{id}` body** (all fields optional):
 ```json
@@ -376,6 +386,7 @@ make down  # Stop
 | GET | `/mail/messages/{message_id}/attachments?user=...` | List Attachments |
 | POST | `/mail/messages/{message_id}/attachments?user=...` | Add Attachment |
 | GET | `/mail/messages/{message_id}/attachments/{attachment_id}?user=...` | Download Attachment |
+| POST | `/mail/messages/{message_id}/draftForward?user=...` | Create Forward Draft |
 | POST | `/mail/messages/{message_id}/draftReply?reply_all=...&user=...` | Create Reply Draft |
 | POST | `/mail/messages/{message_id}/forward?user=...` | Forward Message |
 | POST | `/mail/messages/{message_id}/move?verify=...&user=...` | Move Message |
@@ -411,6 +422,7 @@ make down  # Stop
 | GET | `/files/items/{item_id}/children?drive_id=...&top=...&skip=...&...` | List Children |
 | GET | `/files/items/{item_id}/content?drive_id=...&user=...` | Download Content |
 | PUT | `/files/items/{item_id}/content?drive_id=...` | Replace Content |
+| POST | `/files/items/{item_id}/smart-update?drive_id=...&site_id=...` | Smart Update |
 | POST | `/files/items/{parent_id}/folder?drive_id=...` | Create Folder |
 | PUT | `/files/items/{parent_id}:/{filename}:/content?drive_id=...` | Upload Content |
 | GET | `/files/search?q=...&drive_id=...&top=...&...` | Search Files |

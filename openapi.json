@@ -1037,6 +1037,87 @@
         }
       }
     },
+    "/mail/messages/{message_id}/draftForward": {
+      "post": {
+        "tags": [
+          "mail"
+        ],
+        "summary": "Create Forward Draft",
+        "description": "Create a draft forward of a message (does not send it).\n\nThe original message \u2014 including inline images and attachments \u2014 is\npreserved on the draft. Returns the draft message object with its ID;\nuse PATCH /mail/messages/{draft_id} to edit the body before sending.",
+        "operationId": "create_forward_draft_mail_messages__message_id__draftForward_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox.",
+              "title": "User"
+            },
+            "description": "UPN of a shared mailbox you have Full Access to. Default: your own mailbox."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DraftForwardRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/mail/messages/{message_id}/move": {
       "post": {
         "tags": [
@@ -3241,6 +3322,94 @@
             "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_upload_content_files_items__parent_id____filename___content_put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/items/{item_id}/smart-update": {
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Smart Update",
+        "description": "Replace a SharePoint/OneDrive .xlsx in place, with a live-edit fallback.\n\nTries a whole-file replace first. If the file is open in Excel (423 Locked),\nit diffs the proposed workbook against the live one and \u2014 when every change\nis a value/formula/structure edit it can reproduce via a Graph session\n(values/formulas inside declared `region_map` regions; worksheet\nadd/delete/rename/reorder) \u2014 applies them surgically, leaving formatting\nuntouched. Otherwise it returns `deferred` so the caller can ask the user to\nclose the file and retry a clean replace.\n\n`region_map` is an optional JSON object, e.g.\n`{\"AP payments\": {\"data\": \"A2:U200\"}}`. Without it, most diffs defer (safe\ndefault). Returns `{\"mode\", \"ranges_written\", \"reason\"}` where mode is one of\n`replaced` | `live-edited` | `deferred`.",
+        "operationId": "smart_update_files_items__item_id__smart_update_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "drive_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Drive Id"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_smart_update_files_items__item_id__smart_update_post"
               }
             }
           }
@@ -6519,6 +6688,31 @@
         ],
         "title": "Body_replace_content_sharepoint_items__item_id__content_put"
       },
+      "Body_smart_update_files_items__item_id__smart_update_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "region_map": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region Map"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_smart_update_files_items__item_id__smart_update_post"
+      },
       "Body_upload_content_files_items__parent_id____filename___content_put": {
         "properties": {
           "file": {
@@ -6782,6 +6976,41 @@
         ],
         "title": "CreateFolderRequest"
       },
+      "DraftForwardRequest": {
+        "properties": {
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "default": ""
+          },
+          "to_recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "To Recipients",
+            "default": []
+          },
+          "cc_recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Cc Recipients",
+            "default": []
+          },
+          "bcc_recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bcc Recipients",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "DraftForwardRequest"
+      },
       "DraftReplyRequest": {
         "properties": {
           "comment": {
@@ -6797,7 +7026,8 @@
         "properties": {
           "comment": {
             "type": "string",
-            "title": "Comment"
+            "title": "Comment",
+            "default": ""
           },
           "to_recipients": {
             "items": {
@@ -6809,7 +7039,6 @@
         },
         "type": "object",
         "required": [
-          "comment",
           "to_recipients"
         ],
         "title": "ForwardMailRequest"

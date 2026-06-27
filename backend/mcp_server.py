@@ -358,6 +358,104 @@ def mail_reply(
 
 
 @mcp.tool()
+def mail_forward(
+    message_id: str,
+    to_recipients: list[str],
+    comment: str = "",
+    user: str | None = None,
+) -> str:
+    """Forward an email message inline, keeping the original intact.
+
+    Graph's forward action re-sends the original message verbatim, so
+    embedded/inline images and attachments are preserved automatically —
+    nothing needs to be re-uploaded. Plain text newlines in the comment
+    are auto-converted to HTML <br> tags.
+
+    Args:
+        message_id: ID of the message to forward
+        to_recipients: List of recipient email addresses to forward to
+        comment: Optional note to prepend above the forwarded message. Newlines preserved.
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
+    """
+    # Auto-convert plain text newlines to HTML so Outlook preserves formatting
+    if comment:
+        comment = _plain_to_html(comment)
+    params = {"user": user} if user else None
+    return json.dumps(
+        _post(
+            f"/mail/messages/{message_id}/forward",
+            {"comment": comment, "to_recipients": to_recipients},
+            params=params,
+        ),
+        default=str,
+    )
+
+
+@mcp.tool()
+def mail_create_forward_draft(
+    message_id: str,
+    to_recipients: list[str] | None = None,
+    comment: str = "",
+    cc_recipients: list[str] | None = None,
+    bcc_recipients: list[str] | None = None,
+    user: str | None = None,
+) -> str:
+    """Create a draft forward of a message (does not send it).
+
+    Use this instead of mail_forward when you want to review or edit before
+    sending, or need cc/bcc recipients (which the immediate forward action
+    doesn't support). The original message — including inline images and
+    attachments — is preserved on the draft. Returns the draft object with
+    its ID; edit the body with mail_update before sending. Plain text
+    newlines in the comment are auto-converted to HTML <br> tags.
+
+    Args:
+        message_id: ID of the message to forward
+        to_recipients: Recipient email addresses (optional; can be left to fill in on the draft)
+        comment: Optional note to prepend above the forwarded message. Newlines preserved.
+        cc_recipients: CC recipients (optional)
+        bcc_recipients: BCC recipients (optional)
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
+    """
+    # Auto-convert plain text newlines to HTML so Outlook preserves formatting
+    if comment:
+        comment = _plain_to_html(comment)
+    data = {
+        "comment": comment,
+        "to_recipients": to_recipients or [],
+        "cc_recipients": cc_recipients or [],
+        "bcc_recipients": bcc_recipients or [],
+    }
+    params = {"user": user} if user else None
+    return json.dumps(
+        _post(f"/mail/messages/{message_id}/draftForward", data, params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
+def mail_send_draft(
+    message_id: str,
+    user: str | None = None,
+) -> str:
+    """Send an existing draft message.
+
+    Use this to send a draft created by mail_create_draft,
+    mail_create_reply_draft, or mail_create_forward_draft — optionally after
+    editing its body/recipients with mail_update.
+
+    Args:
+        message_id: ID of the draft message to send
+        user: UPN of a shared mailbox you have Full Access to. Default: your own mailbox.
+    """
+    params = {"user": user} if user else None
+    return json.dumps(
+        _post(f"/mail/messages/{message_id}/send", params=params),
+        default=str,
+    )
+
+
+@mcp.tool()
 def mail_move(
     message_id: str,
     destination_folder: str,

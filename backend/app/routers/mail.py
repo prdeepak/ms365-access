@@ -11,6 +11,7 @@ from app.schemas import (
     AddAttachmentRequest,
     CreateDraftRequest,
     DraftReplyRequest,
+    DraftForwardRequest,
     SendMailRequest,
     ReplyMailRequest,
     ForwardMailRequest,
@@ -242,6 +243,30 @@ async def forward_message(
         user=user,
     )
     return {"message": "Message forwarded successfully"}
+
+
+@router.post("/messages/{message_id}/draftForward", dependencies=[Depends(require_permission("write:draft"))])
+async def create_forward_draft(
+    message_id: str,
+    user: Optional[str] = Query(None, description="UPN of a shared mailbox you have Full Access to. Default: your own mailbox."),
+    request: Optional[DraftForwardRequest] = None,
+    mail_service: MailService = Depends(get_mail_service),
+):
+    """Create a draft forward of a message (does not send it).
+
+    The original message — including inline images and attachments — is
+    preserved on the draft. Returns the draft message object with its ID;
+    use PATCH /mail/messages/{draft_id} to edit the body before sending.
+    """
+    request = request or DraftForwardRequest()
+    return await mail_service.create_forward_draft(
+        message_id=message_id,
+        to_recipients=request.to_recipients,
+        comment=request.comment,
+        cc_recipients=request.cc_recipients,
+        bcc_recipients=request.bcc_recipients,
+        user=user,
+    )
 
 
 @router.patch("/messages/{message_id}", dependencies=[Depends(require_permission("write:draft"))])

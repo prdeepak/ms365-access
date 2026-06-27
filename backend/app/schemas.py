@@ -86,8 +86,15 @@ class ReplyMailRequest(BaseModel):
 
 
 class ForwardMailRequest(BaseModel):
-    comment: str
+    comment: str = ""
     to_recipients: list[str]
+
+
+class DraftForwardRequest(BaseModel):
+    comment: str = ""
+    to_recipients: list[str] = []
+    cc_recipients: list[str] = []
+    bcc_recipients: list[str] = []
 
 
 class UpdateMailRequest(BaseModel):
