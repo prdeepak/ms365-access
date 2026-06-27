@@ -5,7 +5,7 @@ aiosqlite==0.22.1
 httpx==0.28.1
 msal==1.36.0
 python-dotenv==1.2.2
-pydantic-settings==2.14.1
+pydantic-settings==2.14.2
 cryptography==48.0.1
 python-multipart==0.0.32
 openpyxl==3.1.5
