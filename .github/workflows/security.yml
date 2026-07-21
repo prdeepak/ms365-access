@@ -18,8 +18,8 @@ jobs:
     name: pip-audit (known-vuln scan)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7.0.0
+      - uses: actions/setup-python@v6.3.0
         with:
           python-version: "3.11"
       # Audit API lock against Python advisory DB.
@@ -37,7 +37,7 @@ jobs:
     name: gitleaks (secret scan)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0   # full history, so a secret in any past commit is caught
       - uses: gitleaks/gitleaks-action@v3
