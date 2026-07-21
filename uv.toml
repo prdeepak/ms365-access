@@ -12,4 +12,10 @@
 # 2026-06-19) — the fix for a symlink out-of-tree secrets read + secrets_dir_max_size bypass
 # in NestedSecretsSettingsSource. The floor must sit just past that release or uv resolves
 # back to the vulnerable 2.14.1.
-exclude-newer = "2026-06-20"
+#
+# Bumped to 2026-06-27 to admit mcp 1.28.1 (published 2026-06-26) — fixes CVE-2026-52870
+# (unscoped experimental-tasks handlers leak/cancel other clients' tasks), CVE-2026-52869
+# (HTTP transports don't bind sessions to the authenticating principal), and CVE-2026-59950
+# (deprecated WebSocket transport skips Host/Origin validation). The floor must sit just
+# past that release or uv resolves back to the vulnerable 1.27.1.
+exclude-newer = "2026-06-27"

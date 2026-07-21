@@ -3,6 +3,18 @@
 # then regenerate the lock:
 #   uv pip compile backend/requirements.txt --generate-hashes --python-version 3.11 -o backend/requirements.lock
 #   uv pip compile backend/requirements-mcp.txt --generate-hashes --python-version 3.11 -o backend/requirements-mcp.lock
+#   uv pip compile backend/requirements-dev.txt --generate-hashes --python-version 3.11 -c backend/requirements.lock -o backend/requirements-dev.lock
+#
+# These commands rewrite an EXISTING lock, and uv treats the versions already
+# pinned there as preferences: it changes only what the edited .txt (or a moved
+# uv.toml exclude-newer floor) forces, leaving every other pin alone. That is
+# intentional — a security bump lands as a one-package diff instead of dragging
+# in unrelated churn. Two consequences worth knowing:
+#   - Compiling to a NEW path resolves from scratch and will pick newer versions
+#     than the committed lock. That is not drift; do not "fix" it.
+#   - To deliberately refresh every pin, pass --upgrade (and review the result).
+# Add --refresh when bumping to a just-published release, so uv re-reads the
+# index instead of a cached copy that may not list it yet.
 version: 2
 
 updates:
