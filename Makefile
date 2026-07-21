@@ -1,7 +1,7 @@
 # MS365 Access - Development Commands
 # Ports: API=8365, MCP (openclaw)=8367
 
-.PHONY: help up down build restart shell logs logs-mcp auth status check-docker gen-client check-client test
+.PHONY: help up down build restart shell logs logs-mcp auth status check-docker gen-client check-client check-locks audit test
 
 # Default target
 help:
@@ -23,7 +23,9 @@ help:
 	@echo "  make status    - Show app and auth status"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test         - Run all checks (includes check-client)"
+	@echo "  make test         - Run all checks (check-client, check-locks, audit)"
+	@echo "  make check-locks  - Verify the .lock files match their .txt files"
+	@echo "  make audit        - Scan the hash-pinned locks for known CVEs"
 	@echo ""
 	@echo "Code Generation:"
 	@echo "  make gen-client   - Regenerate Python client + README from OpenAPI spec"
@@ -84,13 +86,19 @@ gen-client:
 check-client:
 	@python3 scripts/gen_client.py --check
 
+# Dependabot edits the .txt files but never the uv-generated locks, and every
+# image installs from the locks — so a .txt-only bump is inert. Catch that here
+# and in CI rather than in review.
+check-locks:
+	@./scripts/check_locks.sh
+
 audit:
 	@echo "Auditing backend/requirements.lock (hash-pinned)..."
 	uvx pip-audit -r backend/requirements.lock
 	@echo "Auditing backend/requirements-mcp.lock (hash-pinned)..."
 	uvx pip-audit -r backend/requirements-mcp.lock
 
-test: check-client audit
+test: check-client check-locks audit
 	@echo "All checks passed."
 
 status:
