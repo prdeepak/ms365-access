@@ -98,11 +98,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install uv
-        # Pinned: uv.toml's fixed-date exclude-newer floor is 0.10.x behaviour,
-        # and resolver changes between minors could move pins for reasons that
-        # have nothing to do with the .txt files. Bump deliberately, in step with
-        # whatever developers run locally.
-        run: pip install uv==0.10.4
+        # Must satisfy `required-version` in uv.toml — uv refuses to run otherwise.
+        # Keep these two in step when bumping; nothing updates them automatically
+        # (Dependabot reads requirements files and `uses:` lines, not `run:` steps).
+        run: pip install "uv>=0.10.4,<0.11"
 
       - name: Verify locks match their requirements files
         # Recompiles each lock onto a copy of itself, so committed pins are
