@@ -5,10 +5,15 @@ name: CI
 # the MCP server imports and registers its tools, and the locked dependencies
 # resolve under hash verification.
 #
-# Two jobs because the API and the MCP server have disjoint, separately locked
-# dependency sets: backend-smoke covers requirements.lock, mcp-smoke covers
-# requirements-mcp.lock (the set Dockerfile.mcp ships). An `mcp` bump only
-# changes the latter, so without mcp-smoke nothing in CI would import it.
+# Two smoke jobs because the API and the MCP server have disjoint, separately
+# locked dependency sets: backend-smoke covers requirements.lock, mcp-smoke
+# covers requirements-mcp.lock (the set Dockerfile.mcp ships). An `mcp` bump
+# only changes the latter, so without mcp-smoke nothing in CI would import it.
+#
+# lock-sync guards the seam between them: Dependabot edits the .txt files and
+# never the uv-generated locks, so a bump can land inert with the two files
+# disagreeing (that shipped as #65 and #69). It fails on the Dependabot PR
+# itself instead of relying on a reviewer to notice.
 on:
   push:
     branches: [main]
@@ -82,3 +87,23 @@ jobs:
         # deliberately absent from the MCP runtime lock. No credentials needed:
         # mcp_server.py reads MS365_API_URL/MS365_API_KEY lazily at call time.
         run: python -m pytest -q tests/test_mcp_smoke.py
+
+  lock-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        # Must satisfy `required-version` in uv.toml — uv refuses to run otherwise.
+        # Keep these two in step when bumping; nothing updates them automatically
+        # (Dependabot reads requirements files and `uses:` lines, not `run:` steps).
+        run: pip install "uv>=0.10.4,<0.11"
+
+      - name: Verify locks match their requirements files
+        # Recompiles each lock onto a copy of itself, so committed pins are
+        # preferred and only .txt-driven changes surface. See scripts/check_locks.sh.
+        run: ./scripts/check_locks.sh

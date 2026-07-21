@@ -1,3 +1,15 @@
+# Enforce the uv version this config assumes. `exclude-newer` below is fixed-date
+# behaviour specific to uv 0.10.x, and the lock files are byte-compared against a
+# fresh recompile by scripts/check_locks.sh — a resolver change between minors
+# would make correct locks look stale. uv itself errors on a mismatch:
+#     error: Required uv version `...` does not match the running version `...`
+# which is a far clearer failure than the lock diff you would otherwise chase.
+#
+# A range, not an exact pin: patch releases flow through, the minor bump that
+# could change resolution is gated. Keep in step with the uv installed by the
+# lock-sync job in .github/workflows/ci.yml.
+required-version = ">=0.10.4,<0.11"
+
 # Seasoning: refuse to resolve packages uploaded AFTER this date (safety floor
 # for ad-hoc `uv pip install` / venv rebuilds). FIXED DATE only on uv 0.10.x — bump ~monthly.
 #
