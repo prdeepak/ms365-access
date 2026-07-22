@@ -56,3 +56,27 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # Base images (Dockerfile + Dockerfile.mcp, both at the repo root).
+  #
+  # Both pin python:3.11-slim by digest — right for reproducibility, but the pin
+  # never moves on its own. Nothing else in this repo can see that: pip-audit
+  # scans Python packages only, and the pip ecosystem above reads requirements
+  # files. So OS-level CVEs in the base image (openssl, glibc, zlib, ...) were
+  # invisible to every check until this entry existed.
+  #
+  # Merging one of these PRs re-pins the digest; rebuild the images afterwards.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "docker"
+    cooldown:
+      default-days: 14
+    groups:
+      docker-base-images:
+        patterns:
+          - "*"
